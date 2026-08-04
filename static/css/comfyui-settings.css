@@ -271,3 +271,105 @@ html.embedded-settings.studio-theme-dark body input::placeholder,
 html.embedded-settings.studio-theme-dark body textarea::placeholder {
     color:var(--faint)!important;
 }
+
+/* Settings center native rows */
+html.embedded-settings,
+html.embedded-settings body {
+    --bg:#f3f3ef;
+    --panel:#fafaf7;
+    --soft:#eeeeea;
+    --line:#d8d9d3;
+    --line-strong:#c5c7c0;
+    --text:#1e201d;
+    --muted:#6f746d;
+    --faint:#969b94;
+    --accent:#1f6f57;
+    min-height:0!important;
+    overflow:visible!important;
+    background:transparent!important;
+}
+html.embedded-settings .page { padding:0 0 36px!important; }
+html.embedded-settings .layout {
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    gap:0!important;
+}
+html.embedded-settings .sidebar {
+    position:static!important;
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    gap:0!important;
+    max-height:none!important;
+    overflow:visible!important;
+    padding:0!important;
+    border-bottom:1px solid var(--line)!important;
+}
+html.embedded-settings .side-card {
+    display:grid!important;
+    grid-template-columns:minmax(190px,.8fr) minmax(280px,1.2fr)!important;
+    align-items:start!important;
+    gap:10px 24px!important;
+    padding:20px 0!important;
+    border:0!important;
+    border-bottom:1px solid var(--line)!important;
+    border-radius:0!important;
+    background:transparent!important;
+}
+html.embedded-settings .side-card > :not(.side-title) { grid-column:2!important; }
+html.embedded-settings .side-card .side-title { grid-column:1!important; grid-row:1 / span 5; padding-top:9px; }
+html.embedded-settings .side-title {
+    color:var(--text)!important;
+    font-size:13px!important;
+    letter-spacing:0!important;
+    text-transform:none!important;
+}
+html.embedded-settings #previewCard { grid-template-rows:auto auto!important; }
+html.embedded-settings #previewCard .preview-title-row,
+html.embedded-settings #previewCard .preview-desc { grid-column:1!important; }
+html.embedded-settings #previewCard .preview-title-row { grid-row:1!important; }
+html.embedded-settings #previewCard .preview-desc { grid-row:2!important; }
+html.embedded-settings #previewCard #previewContent { grid-column:2!important; grid-row:1 / span 2!important; }
+html.embedded-settings .side-card:last-child { border-bottom:0!important; }
+html.embedded-settings .workflow-list {
+    display:grid!important;
+    grid-template-columns:repeat(auto-fit,minmax(190px,1fr))!important;
+    max-height:none!important;
+    overflow:visible!important;
+}
+html.embedded-settings .content { gap:0!important; }
+html.embedded-settings .content-head,
+html.embedded-settings .graph-card {
+    padding:22px 0!important;
+    border:0!important;
+    border-bottom:1px solid var(--line)!important;
+    border-radius:0!important;
+    background:transparent!important;
+}
+html.embedded-settings .input-row {
+    grid-template-columns:32px minmax(190px,.8fr) minmax(220px,1.2fr) minmax(120px,.55fr)!important;
+    padding:11px 0!important;
+    border-width:0 0 1px!important;
+    border-radius:0!important;
+    background:transparent!important;
+}
+html.embedded-settings .input-row.is-active { background:transparent!important; }
+html.embedded-settings .graph-svg-wrap { height:min(720px,70vh); min-height:440px; }
+html.embedded-settings.studio-theme-dark .side-card,
+html.embedded-settings.studio-theme-dark .content-head,
+html.embedded-settings.studio-theme-dark .graph-card,
+html.embedded-settings.studio-theme-dark .input-row { background:transparent!important; }
+
+@media (max-width:820px) {
+    html.embedded-settings .side-card { grid-template-columns:minmax(0,1fr)!important; }
+    html.embedded-settings .side-card > :not(.side-title),
+    html.embedded-settings .side-card .side-title,
+    html.embedded-settings #previewCard .preview-title-row,
+    html.embedded-settings #previewCard .preview-desc,
+    html.embedded-settings #previewCard #previewContent { grid-column:1!important; grid-row:auto!important; }
+    html.embedded-settings .input-row { grid-template-columns:28px minmax(0,1fr)!important; gap:8px!important; }
+    html.embedded-settings .input-row > .small-input,
+    html.embedded-settings .input-row > .small-select { grid-column:2!important; }
+    html.embedded-settings .extras-row { grid-column:1/-1!important; }
+    html.embedded-settings .content-actions { width:100%; flex-wrap:wrap; }
+    html.embedded-settings .graph-svg-wrap { height:520px; min-height:360px; }
+}

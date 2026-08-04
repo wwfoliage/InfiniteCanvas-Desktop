@@ -6113,3 +6113,110 @@ html.embedded-settings.studio-theme-dark body .block {
     background:var(--api-dark-panel)!important;
     border-color:var(--api-dark-line)!important;
 }
+
+/* Settings center native rows */
+html.embedded-settings,
+html.embedded-settings body {
+    --bg:#f3f3ef;
+    --panel:#fafaf7;
+    --soft:#eeeeea;
+    --line:#d8d9d3;
+    --line-strong:#c5c7c0;
+    --text:#1e201d;
+    --muted:#6f746d;
+    --faint:#969b94;
+    --accent:#1f6f57;
+    min-height:0!important;
+    overflow:visible!important;
+    background:transparent!important;
+}
+html.embedded-settings .page { padding:0 0 36px!important; }
+html.embedded-settings .layout {
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    gap:0!important;
+}
+html.embedded-settings .sidebar {
+    position:static!important;
+    max-height:none!important;
+    overflow:visible!important;
+    padding:0 0 22px!important;
+    border:0!important;
+    border-bottom:1px solid var(--line)!important;
+    border-radius:0!important;
+    background:transparent!important;
+}
+html.embedded-settings .provider-list {
+    display:flex!important;
+    flex-direction:row!important;
+    flex-wrap:wrap!important;
+    gap:7px!important;
+    padding:0 0 14px!important;
+    margin:0 0 2px!important;
+    border-bottom:1px solid var(--line)!important;
+}
+html.embedded-settings .provider-card {
+    width:auto!important;
+    min-width:138px!important;
+    max-width:210px!important;
+    min-height:42px!important;
+    padding:6px 9px!important;
+    border:1px solid var(--line)!important;
+    border-radius:7px!important;
+}
+html.embedded-settings .provider-card.active { border-color:var(--line-strong)!important; }
+html.embedded-settings .add-btn,
+html.embedded-settings .api-link-btn { width:auto!important; min-width:150px; border-radius:6px!important; }
+html.embedded-settings .cli-quick-list { grid-template-columns:repeat(auto-fit,minmax(150px,1fr))!important; }
+html.embedded-settings .content { gap:0!important; }
+html.embedded-settings .content-head,
+html.embedded-settings .block {
+    padding:22px 0!important;
+    border:0!important;
+    border-bottom:1px solid var(--line)!important;
+    border-radius:0!important;
+    background:transparent!important;
+}
+html.embedded-settings .content-head { align-items:center!important; }
+html.embedded-settings .provider-onboarding-card {
+    min-height:0!important;
+    justify-content:flex-start!important;
+    padding:22px 0!important;
+    border:0!important;
+    border-bottom:1px solid var(--line)!important;
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+}
+html.embedded-settings .block-head { padding-bottom:12px!important; }
+html.embedded-settings .form { display:block!important; }
+html.embedded-settings .field.full {
+    display:grid!important;
+    grid-template-columns:minmax(190px,.8fr) minmax(280px,1.2fr)!important;
+    align-items:center!important;
+    gap:20px!important;
+    min-height:68px!important;
+    padding:10px 0!important;
+    border-bottom:1px solid var(--line)!important;
+}
+html.embedded-settings .field.full:last-child { border-bottom:0!important; }
+html.embedded-settings .field.full > .label { font-size:12.5px!important; color:var(--text)!important; }
+html.embedded-settings .field.full > .hint { grid-column:2!important; margin-top:-12px!important; }
+html.embedded-settings.studio-theme-dark body .sidebar,
+html.embedded-settings.studio-theme-dark body .content-head,
+html.embedded-settings.studio-theme-dark body .block { background:transparent!important; }
+html.embedded-settings.studio-theme-dark body .api-link-btn {
+    background:var(--soft)!important;
+    border-color:var(--line-strong)!important;
+    color:var(--text)!important;
+    box-shadow:none!important;
+}
+
+@media (max-width:760px) {
+    html.embedded-settings .provider-card { flex:1 1 145px!important; max-width:none!important; }
+    html.embedded-settings .recommend-inline-body .recommend-group { grid-template-columns:minmax(0,1fr)!important; }
+    html.embedded-settings .field.full { grid-template-columns:minmax(0,1fr)!important; gap:8px!important; align-items:stretch!important; }
+    html.embedded-settings .field.full > .hint { grid-column:1!important; margin-top:0!important; }
+    html.embedded-settings .content-head { align-items:flex-start!important; }
+    html.embedded-settings .content-actions { width:100%; flex-wrap:wrap; }
+}

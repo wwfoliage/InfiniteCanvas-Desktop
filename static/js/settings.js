@@ -22,6 +22,7 @@
     let currentUpdate = null;
     let nativeSequence = 0;
     const nativePending = new Map();
+    const embeddedTopResetTimers = new WeakMap();
 
     function currentLanguage(){ return settings?.language || window.StudioI18n?.lang?.() || 'zh'; }
     function t(key, values={}){
@@ -109,11 +110,18 @@
     function activateSection(section){
         const next = SECTIONS.includes(section) ? section : 'downloads';
         localStorage.setItem(ACTIVE_SECTION_KEY, next);
+        const content = document.querySelector('.settings-content');
+        if(content) content.scrollTop = 0;
         document.querySelectorAll('[data-settings-section]').forEach(button => button.classList.toggle('active', button.dataset.settingsSection === next));
         document.querySelectorAll('[data-settings-panel]').forEach(panel => panel.classList.toggle('active', panel.dataset.settingsPanel === next));
         const panel = document.querySelector(`[data-settings-panel="${next}"]`);
         const frame = panel?.querySelector('iframe[data-embedded-src]');
-        if(frame && !frame.src) frame.src = frame.dataset.embeddedSrc;
+        if(frame){
+            frame.dataset.resetScrollTop = '1';
+            clearTimeout(embeddedTopResetTimers.get(frame));
+            embeddedTopResetTimers.set(frame, setTimeout(() => { delete frame.dataset.resetScrollTop; }, 1500));
+            if(!frame.src) frame.src = frame.dataset.embeddedSrc;
+        }
         if(next === 'storage') refreshStorage();
         if(next === 'about') loadAbout();
         requestAnimationFrame(() => window.lucide?.createIcons?.());
@@ -225,6 +233,16 @@
         document.querySelectorAll('.embedded-frame-wrap iframe').forEach(frame => frame.addEventListener('load', () => syncEmbeddedFrame(frame)));
         window.addEventListener('message', event => {
             if(event.origin !== location.origin) return;
+            if(event.data?.type === 'studio-embedded-size'){
+                const frame = Array.from(document.querySelectorAll('.embedded-frame-wrap iframe')).find(frame => frame.contentWindow === event.source);
+                if(!frame) return;
+                const height = Math.min(24000, Math.max(320, Math.ceil(Number(event.data.height) || 0)));
+                frame.style.setProperty('--embedded-frame-height', `${height}px`);
+                if(frame.dataset.resetScrollTop === '1'){
+                    const content = document.querySelector('.settings-content');
+                    if(content) content.scrollTop = 0;
+                }
+            }
             if(event.data?.type === 'settings-native-response'){
                 const complete = nativePending.get(event.data.id); if(!complete) return;
                 nativePending.delete(event.data.id); complete(event.data.result || {ok:false});

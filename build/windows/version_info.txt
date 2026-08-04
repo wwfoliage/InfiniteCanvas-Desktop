@@ -1,7 +1,7 @@
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(2026, 8, 6, 0),
-    prodvers=(2026, 8, 6, 0),
+    filevers=(2026, 8, 7, 0),
+    prodvers=(2026, 8, 7, 0),
     mask=0x3f,
     flags=0x0,
     OS=0x40004,
@@ -14,12 +14,12 @@ VSVersionInfo(
       StringTable('080404B0', [
         StringStruct('CompanyName', 'wwfoliage'),
         StringStruct('FileDescription', 'InfiniteCanvas Desktop'),
-        StringStruct('FileVersion', '2026.08.06'),
+        StringStruct('FileVersion', '2026.08.07'),
         StringStruct('InternalName', 'InfiniteCanvas'),
         StringStruct('LegalCopyright', 'See bundled LICENSE'),
         StringStruct('OriginalFilename', 'InfiniteCanvas.exe'),
         StringStruct('ProductName', 'InfiniteCanvas Desktop'),
-        StringStruct('ProductVersion', '2026.08.06')
+        StringStruct('ProductVersion', '2026.08.07')
       ])
     ]),
     VarFileInfo([VarStruct('Translation', [2052, 1200])])
