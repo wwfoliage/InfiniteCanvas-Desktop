@@ -1615,6 +1615,19 @@ html.embedded-settings .page { min-height:0; padding:0 0 40px; }
 html.embedded-settings .wrap { max-width:none; margin:0; }
 html.embedded-settings .page-head { display:none; }
 html.embedded-settings .layout { align-items:start; }
+html.embedded-settings.studio-theme-dark,
+html.embedded-settings.studio-theme-dark body {
+    --bg:#181818!important;
+    --panel:#242424!important;
+    --soft:#2c2c2c!important;
+    --line:#393939!important;
+    --line-strong:#4b4b4b!important;
+    --text:rgba(255,255,255,.9)!important;
+    --muted:rgba(255,255,255,.55)!important;
+    --faint:rgba(255,255,255,.35)!important;
+    --accent:#e5e5e5!important;
+    background:transparent!important;
+}
 
 .provider-card-mediakit .provider-mark-mediakit {
     background:rgba(37,99,235,.1);
@@ -6074,4 +6087,29 @@ html.studio-theme-dark body .recommend-tag.recommend-free-tag svg {
     .recommend-inline-body .recommend-setup-flow .recommend-guide-arrow {
         display:none !important;
     }
+}
+
+/* Settings center: keep embedded dark pages on the host's neutral gray scale. */
+html.embedded-settings.studio-theme-dark,
+html.embedded-settings.studio-theme-dark body {
+    --api-dark-page:#181818!important;
+    --api-dark-panel:#242424!important;
+    --api-dark-soft:#2c2c2c!important;
+    --api-dark-raised:#2c2c2c!important;
+    --api-dark-hover:#393939!important;
+    --api-dark-line:#393939!important;
+    --api-dark-line-strong:#4b4b4b!important;
+    --api-dark-text:rgba(255,255,255,.9)!important;
+    --api-dark-muted:rgba(255,255,255,.55)!important;
+    --api-dark-faint:rgba(255,255,255,.35)!important;
+    --api-dark-primary:#e5e5e5!important;
+    --api-dark-primary-hover:#ffffff!important;
+    background:transparent!important;
+}
+
+html.embedded-settings.studio-theme-dark body .sidebar,
+html.embedded-settings.studio-theme-dark body .content-head,
+html.embedded-settings.studio-theme-dark body .block {
+    background:var(--api-dark-panel)!important;
+    border-color:var(--api-dark-line)!important;
 }

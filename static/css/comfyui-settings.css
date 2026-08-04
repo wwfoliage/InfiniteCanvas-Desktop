@@ -244,3 +244,30 @@ html.embedded-settings .page { min-height:0; padding:0 0 40px; }
 html.embedded-settings .wrap { max-width:none; margin:0; }
 html.embedded-settings .page-head { display:none; }
 html.embedded-settings .layout { align-items:start; }
+html.embedded-settings.studio-theme-dark,
+html.embedded-settings.studio-theme-dark body {
+    --bg:#181818!important;
+    --panel:#242424!important;
+    --soft:#2c2c2c!important;
+    --line:#393939!important;
+    --line-strong:#4b4b4b!important;
+    --text:rgba(255,255,255,.9)!important;
+    --muted:rgba(255,255,255,.55)!important;
+    --faint:rgba(255,255,255,.35)!important;
+    --accent:#e5e5e5!important;
+    background:transparent!important;
+}
+
+/* theme.css loads after this file; the embedded selector intentionally wins its global form rules. */
+html.embedded-settings.studio-theme-dark body input,
+html.embedded-settings.studio-theme-dark body textarea,
+html.embedded-settings.studio-theme-dark body select {
+    background-color:var(--soft)!important;
+    border-color:var(--line-strong)!important;
+    color:var(--text)!important;
+}
+
+html.embedded-settings.studio-theme-dark body input::placeholder,
+html.embedded-settings.studio-theme-dark body textarea::placeholder {
+    color:var(--faint)!important;
+}
