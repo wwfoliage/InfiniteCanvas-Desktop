@@ -27,6 +27,7 @@ import shlex
 import functools
 import html
 import xml.etree.ElementTree as ET
+from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 from threading import Lock, RLock, Thread
 import httpx
@@ -39,6 +40,20 @@ from fastapi.responses import FileResponse, Response, StreamingResponse, JSONRes
 from pydantic import BaseModel, Field
 from fastapi.middleware.cors import CORSMiddleware
 from canvas_media_tasks import CanvasMediaTaskStore
+from app_settings import AppSettingsStore, settings_for_client
+from download_manager import (
+    DownloadError,
+    DownloadManager,
+    DownloadRemoteError,
+    DownloadRequest,
+    DownloadSizeError,
+    DownloadValidationError,
+    DownloadWriteError,
+    cache_cleanup_preview,
+    clear_rebuildable_cache,
+    iter_file_chunks,
+    storage_report,
+)
 
 QUIET_ACCESS_PATHS = {
     "/api/queue_status",
@@ -224,6 +239,12 @@ from app_paths import ensure_user_directories, resolve_app_paths
 CLIENT_ID = str(uuid.uuid4())
 APP_PATHS = resolve_app_paths()
 ensure_user_directories(APP_PATHS)
+APP_SETTINGS = AppSettingsStore(APP_PATHS.app_settings_file)
+DOWNLOAD_MANAGER = DownloadManager(
+    APP_PATHS,
+    APP_SETTINGS,
+    local_resolver=lambda url: download_local_path_from_url(url),
+)
 BASE_DIR = str(APP_PATHS.resource_dir)
 WORKFLOW_DIR = str(APP_PATHS.workflow_dir)
 WORKFLOW_PATH = os.path.join(WORKFLOW_DIR, "Z-Image.json")
@@ -12553,6 +12574,103 @@ async def build_chat_text_reply(payload, conversation):
     }
 
 # --- 路由接口 ---
+
+class DownloadUrlRequest(BaseModel):
+    url: str
+    filename: str
+    category: str = ""
+
+
+def download_local_path_from_url(url: str):
+    raw = str(url or "").strip()
+    parsed = urllib.parse.urlsplit(raw)
+    if parsed.scheme or not parsed.path.startswith("/"):
+        return None
+    if parsed.path == "/api/download-output":
+        nested = urllib.parse.parse_qs(parsed.query).get("url", [""])[0]
+        return download_local_path_from_url(nested) if nested else None
+    rewritten = rewrite_runninghub_file_url(raw)
+    path = output_file_from_url(rewritten)
+    if not path:
+        path = local_media_file_by_basename(filename_from_media_url(rewritten, ""))
+    return Path(path).resolve() if path and os.path.isfile(path) else None
+
+
+def _download_http_error(exc: DownloadError) -> HTTPException:
+    if isinstance(exc, DownloadValidationError):
+        status = 400
+    elif isinstance(exc, DownloadSizeError):
+        status = 413
+    elif isinstance(exc, DownloadRemoteError):
+        status = 502
+    elif isinstance(exc, DownloadWriteError):
+        status = 500
+    else:
+        status = 500
+    return HTTPException(
+        status_code=status,
+        detail={"code": exc.code, "message": str(exc)},
+    )
+
+
+@app.get("/api/app-settings")
+def get_app_settings():
+    return settings_for_client(APP_SETTINGS.load())
+
+
+@app.put("/api/app-settings")
+def put_app_settings(payload: Dict[str, Any]):
+    try:
+        return settings_for_client(APP_SETTINGS.update(payload))
+    except OSError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail={"code": "settings_write_failed", "message": str(exc)},
+        ) from exc
+
+
+@app.post("/api/downloads/url")
+def save_download_url(payload: DownloadUrlRequest):
+    try:
+        return DOWNLOAD_MANAGER.save_url(
+            DownloadRequest(payload.filename, payload.category), payload.url
+        ).as_dict()
+    except DownloadError as exc:
+        raise _download_http_error(exc) from exc
+
+
+@app.post("/api/downloads/blob")
+def save_download_blob(
+    file: UploadFile = File(...),
+    filename: str = Form(...),
+    category: str = Form(""),
+):
+    try:
+        return DOWNLOAD_MANAGER.save_stream(
+            DownloadRequest(filename, category, file.content_type or ""),
+            iter_file_chunks(file.file, limit=512 * 1024 * 1024),
+        ).as_dict()
+    except DownloadError as exc:
+        raise _download_http_error(exc) from exc
+
+
+@app.get("/api/storage-report")
+def get_storage_report():
+    return storage_report(APP_PATHS, APP_SETTINGS.load())
+
+
+@app.get("/api/cache-cleanup-preview")
+def get_cache_cleanup_preview():
+    return cache_cleanup_preview(APP_PATHS)
+
+
+@app.post("/api/cache-cleanup")
+def clear_app_cache():
+    try:
+        return clear_rebuildable_cache(APP_PATHS)
+    except DownloadError as exc:
+        raise _download_http_error(exc) from exc
+
 
 @app.get("/")
 async def index():
