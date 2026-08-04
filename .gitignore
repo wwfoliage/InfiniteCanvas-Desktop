@@ -1,0 +1,35 @@
+# Secrets and machine-local configuration
+.env
+*.env
+API/
+global_config.json
+
+# User content and runtime state
+assets/
+output/
+data/
+history.json
+logs/
+
+# Python and test caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local runtimes and offline packages
+python/
+packages/
+get-pip.py
+
+# Desktop build artifacts
+build/pyinstaller/
+build/windows/InfiniteCanvas.ico
+dist/
+*.spec.bak
+
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.lnk
