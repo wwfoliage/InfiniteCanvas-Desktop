@@ -21,6 +21,7 @@ AppSupportURL=https://github.com/wwfoliage/InfiniteCanvas-Desktop/issues
 AppUpdatesURL=https://github.com/wwfoliage/InfiniteCanvas-Desktop/releases
 #ifdef SmokeTestRoot
 DefaultDirName={#SmokeTestRoot}
+UsePreviousAppDir=no
 #else
 DefaultDirName={localappdata}\Programs\InfiniteCanvas
 #endif

@@ -6,6 +6,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 
 INSTALLER_SCRIPT = Path(__file__).resolve().parents[1] / "build" / "windows" / "InfiniteCanvas.iss"
+INSTALLER_SMOKE_SCRIPT = (
+    Path(__file__).resolve().parents[1] / "build" / "windows" / "test_installer_upgrade.ps1"
+)
 PYINSTALLER_SPEC = Path(__file__).resolve().parents[1] / "build" / "windows" / "InfiniteCanvas.spec"
 
 
@@ -52,7 +55,19 @@ class InstallerDefinitionTests(unittest.TestCase):
 
         self.assertIn("#ifdef SmokeTestRoot", script)
         self.assertIn("Uninstallable=no", script)
+        self.assertIn("UsePreviousAppDir=no", script)
         self.assertIn("#ifndef SmokeTestRoot", script)
+
+    def test_upgrade_smoke_script_covers_clean_install_and_legacy_residue(self):
+        script = INSTALLER_SMOKE_SCRIPT.read_text(encoding="utf-8-sig")
+
+        self.assertIn('"/DSmokeTestRoot=$installRoot"', script)
+        self.assertIn("legacy-speedups.cp310-win_amd64.pyd", script)
+        self.assertIn("websockets-16.1.1.dist-info", script)
+        self.assertIn('"/VERYSILENT"', script)
+        self.assertIn("InfiniteCanvas.exe", script)
+        self.assertIn("Assert-WithinTestRoot", script)
+        self.assertIn("Start-Process -FilePath $Installer -ArgumentList $Arguments -Wait -PassThru", script)
 
     def test_pyinstaller_excludes_generated_tool_caches(self):
         spec = PYINSTALLER_SPEC.read_text(encoding="utf-8-sig")
