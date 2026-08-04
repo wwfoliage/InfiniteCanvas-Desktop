@@ -13,11 +13,31 @@ class InstallerDefinitionTests(unittest.TestCase):
     def test_installer_preserves_local_app_data(self):
         script = INSTALLER_SCRIPT.read_text(encoding="utf-8-sig")
 
-        self.assertIn("AppId={{", script)
+        self.assertIn("AppId={{61D4D665-79A6-4C85-A5D0-FE262538F79C}", script)
         self.assertIn("PrivilegesRequired=lowest", script)
         self.assertNotIn("%LOCALAPPDATA%", script)
         self.assertNotIn("uninsdelete", script.lower())
         self.assertIn("OutputBaseFilename=InfiniteCanvas-Setup-{#AppVersion}", script)
+
+    def test_upgrade_removes_only_old_runtime_before_copy(self):
+        script = INSTALLER_SCRIPT.read_text(encoding="utf-8-sig")
+
+        self.assertIn("function PrepareToInstall(var NeedsRestart: Boolean): String;", script)
+        self.assertIn("RuntimeDir := ExpandConstant('{app}\\_internal');", script)
+        self.assertIn("ExecutablePath := ExpandConstant('{app}\\InfiniteCanvas.exe');", script)
+        self.assertIn("if DirExists(RuntimeDir)", script)
+        self.assertIn("DelTree(RuntimeDir, True, True, True)", script)
+        self.assertIn("if FileExists(ExecutablePath)", script)
+        self.assertIn("DeleteFile(ExecutablePath)", script)
+        self.assertIn("Result := 'The previous InfiniteCanvas runtime could not be removed.'", script)
+        self.assertIn("Result := 'The previous InfiniteCanvas executable could not be removed.'", script)
+
+    def test_cleanup_does_not_target_user_data_or_whole_app_directory(self):
+        script = INSTALLER_SCRIPT.read_text(encoding="utf-8-sig")
+        cleanup = script.split("function PrepareToInstall", 1)[1]
+
+        self.assertNotIn("localappdata", cleanup.lower())
+        self.assertNotIn("DelTree(ExpandConstant('{app}')", cleanup)
 
     def test_installer_is_per_user_and_supports_upgrade(self):
         script = INSTALLER_SCRIPT.read_text(encoding="utf-8-sig")

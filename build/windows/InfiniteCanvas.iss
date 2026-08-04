@@ -67,6 +67,30 @@ Filename: "{app}\InfiniteCanvas.exe"; Description: "{cm:LaunchProgram,InfiniteCa
 #endif
 
 [Code]
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  RuntimeDir: String;
+  ExecutablePath: String;
+begin
+  Result := '';
+  RuntimeDir := ExpandConstant('{app}\_internal');
+  ExecutablePath := ExpandConstant('{app}\InfiniteCanvas.exe');
+
+  if DirExists(RuntimeDir) and
+     (not DelTree(RuntimeDir, True, True, True)) then
+  begin
+    Result := 'The previous InfiniteCanvas runtime could not be removed.';
+    Exit;
+  end;
+
+  if FileExists(ExecutablePath) and
+     (not DeleteFile(ExecutablePath)) then
+  begin
+    Result := 'The previous InfiniteCanvas executable could not be removed.';
+    Exit;
+  end;
+end;
+
 function HasWebView2Runtime: Boolean;
 var
   Version: String;
