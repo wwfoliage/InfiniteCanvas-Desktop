@@ -70,8 +70,8 @@ class SettingsDarkThemeTests(unittest.TestCase):
     def test_settings_assets_use_new_cache_version(self):
         settings = read("static/settings.html")
         index = read("static/index.html")
-        self.assertIn('/static/css/settings.css?v=2026.08.07.6', settings)
-        self.assertIn('/static/settings.html?v=2026.08.07.6', index)
+        self.assertIn('/static/css/settings.css?v=2026.08.08.1', settings)
+        self.assertIn('/static/settings.html?v=2026.08.08.1', index)
 
     def test_embedded_settings_share_the_gray_palette(self):
         for path in (
@@ -90,11 +90,11 @@ class SettingsDarkThemeTests(unittest.TestCase):
                 self.assertIn(token, css)
 
         self.assertIn(
-            '/static/css/api-settings.css?v=2026.08.07.6',
+            '/static/css/api-settings.css?v=2026.08.08.1',
             read("static/api-settings.html"),
         )
         self.assertIn(
-            '/static/css/comfyui-settings.css?v=2026.08.07.6',
+            '/static/css/comfyui-settings.css?v=2026.08.08.1',
             read("static/comfyui-settings.html"),
         )
 

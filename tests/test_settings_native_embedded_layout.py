@@ -15,7 +15,7 @@ class SettingsNativeEmbeddedLayoutTests(unittest.TestCase):
         css = read("static/css/settings.css").lower()
         settings = read("static/settings.html")
         self.assertEqual(settings.count('scrolling="no"'), 2)
-        self.assertIn(".settings-panel.embedded-panel{width:min(1180px,100%)}", css)
+        self.assertIn(".settings-panel.embedded-panel{width:100%;max-width:none}", css)
         self.assertRegex(
             css,
             r"\.settings-panel\.embedded-panel\.active\s*\{[^}]*height:auto[^}]*display:block",
@@ -38,7 +38,7 @@ class SettingsNativeEmbeddedLayoutTests(unittest.TestCase):
             source = read(page)
             self.assertIn("document.documentElement.dataset.studioScale='off'", source)
             self.assertIn(
-                '/static/js/embedded-settings-resize.js?v=2026.08.07.6',
+                '/static/js/embedded-settings-resize.js?v=2026.08.08.1',
                 source,
             )
         script = read("static/js/embedded-settings-resize.js")
@@ -62,6 +62,14 @@ class SettingsNativeEmbeddedLayoutTests(unittest.TestCase):
         self.assertIn("grid-template-columns:minmax(190px,.8fr) minmax(280px,1.2fr)", scoped)
         self.assertIn("border-radius:0!important", scoped)
         self.assertIn("background:transparent!important", scoped)
+        self.assertIn(
+            "html.embedded-settings .page,\nhtml.embedded-settings .wrap,\nhtml.embedded-settings .layout,\nhtml.embedded-settings .content",
+            scoped,
+        )
+        self.assertIn(
+            "html.embedded-settings:not(.studio-theme-dark) body:not(.theme-dark) .sidebar",
+            scoped,
+        )
 
     def test_workflow_embedded_mode_uses_native_rows_without_inner_scroll(self):
         css = read("static/css/comfyui-settings.css").lower()
@@ -79,15 +87,19 @@ class SettingsNativeEmbeddedLayoutTests(unittest.TestCase):
         self.assertIn("max-height:none!important", scoped)
         self.assertIn("overflow:visible!important", scoped)
         self.assertIn("background:transparent!important", scoped)
+        self.assertIn(
+            "html.embedded-settings .page,\nhtml.embedded-settings .wrap,\nhtml.embedded-settings .layout,\nhtml.embedded-settings .content",
+            scoped,
+        )
 
     def test_native_embedded_assets_use_next_cache_version(self):
         settings = read("static/settings.html")
         index = read("static/index.html")
-        self.assertIn('/static/css/settings.css?v=2026.08.07.6', settings)
-        self.assertIn('/static/js/settings.js?v=2026.08.07.6', settings)
-        self.assertIn('/static/settings.html?v=2026.08.07.6', index)
-        self.assertIn('/static/css/api-settings.css?v=2026.08.07.6', read("static/api-settings.html"))
-        self.assertIn('/static/css/comfyui-settings.css?v=2026.08.07.6', read("static/comfyui-settings.html"))
+        self.assertIn('/static/css/settings.css?v=2026.08.08.1', settings)
+        self.assertIn('/static/js/settings.js?v=2026.08.08.1', settings)
+        self.assertIn('/static/settings.html?v=2026.08.08.1', index)
+        self.assertIn('/static/css/api-settings.css?v=2026.08.08.1', read("static/api-settings.html"))
+        self.assertIn('/static/css/comfyui-settings.css?v=2026.08.08.1', read("static/comfyui-settings.html"))
 
 
 if __name__ == "__main__":

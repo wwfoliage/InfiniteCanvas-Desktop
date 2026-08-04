@@ -288,6 +288,14 @@ html.embedded-settings body {
     overflow:visible!important;
     background:transparent!important;
 }
+html.embedded-settings .page,
+html.embedded-settings .wrap,
+html.embedded-settings .layout,
+html.embedded-settings .content {
+    width:100%!important;
+    max-width:none!important;
+    background:var(--bg)!important;
+}
 html.embedded-settings .page { padding:0 0 36px!important; }
 html.embedded-settings .layout {
     display:grid!important;
@@ -303,6 +311,7 @@ html.embedded-settings .sidebar {
     overflow:visible!important;
     padding:0!important;
     border-bottom:1px solid var(--line)!important;
+    background:var(--bg)!important;
 }
 html.embedded-settings .side-card {
     display:grid!important;
