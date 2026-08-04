@@ -34,7 +34,10 @@ class MigrationPlan:
     asset_library_id_map: dict[str, str] = field(default_factory=dict)
     prompt_id_map: dict[str, str] = field(default_factory=dict)
     counts: dict[str, int] = field(default_factory=dict)
+    expected_counts: dict[str, int] = field(default_factory=dict)
     conflicts: dict[str, int] = field(default_factory=dict)
+    protected_hashes: dict[str, str | None] = field(default_factory=dict)
+    workflow_hashes: dict[str, str] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
 
 
