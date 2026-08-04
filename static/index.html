@@ -1553,15 +1553,15 @@
             </nav>
 
             <div class="side-actions">
-                <button class="side-pill" onclick="switchUI(this, 'api-settings')" type="button" title="API 设置">
+                <button class="side-pill" onclick="switchUI(this, 'settings')" type="button" title="设置" data-i18n-title="common.settings">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M15 7h3a5 5 0 0 1 0 10h-3"></path>
                         <path d="M9 17H6A5 5 0 0 1 6 7h3"></path>
                         <line x1="8" y1="12" x2="16" y2="12"></line>
                     </svg>
-                    <span class="side-pill-text" data-i18n="common.apiSettings">API 设置</span>
+                    <span class="side-pill-text" data-i18n="common.settings">设置</span>
                 </button>
-                <button class="side-pill settings-fold-toggle" id="settings-fold-toggle" onclick="toggleSidebarSettings()" type="button" title="更多设置" aria-expanded="false">
+                <button class="side-pill" type="button" hidden aria-hidden="true" tabindex="-1">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="3"></circle>
                         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.36 1.08V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.08-.36H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .36-1.08V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.22.38.58.69 1 .86.2.08.42.13.65.14H21a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15z"></path>
@@ -1571,8 +1571,8 @@
                         <polyline points="6 9 12 15 18 9"></polyline>
                     </svg>
                 </button>
-                <div class="settings-fold-group is-collapsed" id="settings-fold-group">
-                    <button class="side-pill" onclick="toggleTheme()" id="theme-toggle-btn" type="button" title="切换夜间模式">
+                <div class="settings-fold-group is-collapsed" hidden aria-hidden="true">
+                    <button class="side-pill" type="button" tabindex="-1">
                         <svg id="icon-moon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
                         </svg>
@@ -1589,7 +1589,7 @@
                         </svg>
                         <span class="side-pill-text" data-i18n="common.darkMode">黑夜模式</span>
                     </button>
-                    <button class="side-pill" onclick="toggleLanguage()" id="lang-toggle-btn" type="button" title="Language">
+                    <button class="side-pill" type="button" tabindex="-1">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="10"></circle>
                             <path d="M2 12h20"></path>
@@ -1597,7 +1597,7 @@
                         </svg>
                         <span class="side-pill-text" data-i18n="common.language">中文</span>
                     </button>
-                    <button class="side-pill" onclick="switchUI(this, 'comfyui-settings')" type="button" title="工作流设置">
+                    <button class="side-pill" type="button" tabindex="-1">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="3" y="3" width="7" height="7" rx="1"></rect>
                             <rect x="14" y="3" width="7" height="7" rx="1"></rect>
@@ -1635,8 +1635,7 @@
             <iframe id="frame-online" data-src="/static/online.html?v=2026.07.23.1785342417" scrolling="yes"></iframe>
             <iframe id="frame-gpt-chat" data-src="/static/gpt-chat.html?v=2026.07.23.1785342417" scrolling="yes"></iframe>
             <iframe id="frame-asset-manager" data-src="/static/asset-manager.html?v=2026.07.23.1785342417" scrolling="yes"></iframe>
-            <iframe id="frame-api-settings" data-src="/static/api-settings.html?v=2026.07.23.1785342417" scrolling="yes"></iframe>
-            <iframe id="frame-comfyui-settings" data-src="/static/comfyui-settings.html?v=2026.07.23.1785342417" scrolling="yes"></iframe>
+            <iframe id="frame-settings" data-src="/static/settings.html?v=2026.08.04.1" scrolling="yes"></iframe>
             <iframe id="frame-canvas" data-src="/static/canvas-list.html?v=2026.07.23.1785418252" scrolling="yes"></iframe>
 
         </main>
@@ -1742,10 +1741,9 @@
         localStorage.setItem("client_id", CID);
         const ACTIVE_PAGE_KEY = 'studio_active_page';
         const LOCAL_NAV_COLLAPSED_KEY = 'studio_local_nav_collapsed';
-        const SIDEBAR_SETTINGS_COLLAPSED_KEY = 'studio_sidebar_settings_collapsed';
         const SIDEBAR_PINNED_KEY = 'studio_sidebar_pinned';
         const DEFAULT_PAGE_ID = 'zimage';
-        const PAGE_IDS = ['zimage','enhance','klein','angle','online','gpt-chat','canvas','asset-manager','api-settings','comfyui-settings'];
+        const PAGE_IDS = ['zimage','enhance','klein','angle','online','gpt-chat','canvas','asset-manager','settings'];
         const LOCAL_PAGE_IDS = ['zimage','enhance','klein','angle'];
         const PROJECT_URL = 'https://github.com/hero8152/Infinite-Canvas';
         let appInfo = { version:'', repo_url:PROJECT_URL, version_url:'https://raw.githubusercontent.com/hero8152/Infinite-Canvas/main/VERSION' };
@@ -1854,9 +1852,6 @@
             } else {
                 setLocalNavCollapsed(localStorage.getItem(LOCAL_NAV_COLLAPSED_KEY) === '1', { skipRemember:true });
             }
-            if(id === 'comfyui-settings') {
-                setSidebarSettingsCollapsed(false, { skipRemember:true });
-            }
             // 切换到画布时通知刷新工作流列表（防止在 comfyui-settings 修改后画布未及时更新）
             if (id === 'canvas' && target.src) {
                 try { target.contentWindow?.postMessage({ type: 'canvas-focus' }, '*'); } catch(e) {}
@@ -1890,8 +1885,34 @@
             } catch(e) {}
         }
 
-        window.addEventListener('message', event => {
+        window.addEventListener('message', async event => {
             if (event.origin && event.origin !== location.origin) return;
+            if(event.data?.type === 'settings-native-request') {
+                const {id, action, kind} = event.data;
+                let result = {ok:false, error_code:'desktop_api_unavailable'};
+                try {
+                    if(window.pywebview?.api) {
+                        if(action === 'choose-download-directory') result = await window.pywebview.api.choose_download_directory();
+                        if(action === 'open-directory') result = await window.pywebview.api.open_directory(kind);
+                    }
+                } catch(error) {
+                    result = {ok:false, error_code:'desktop_api_failed', message:String(error?.message || error)};
+                }
+                try { event.source?.postMessage({type:'settings-native-response', id, result}, event.origin || location.origin); } catch(_) {}
+                return;
+            }
+            if(event.data?.type === 'studio-settings-preferences') {
+                const next = event.data.settings || {};
+                if(next.appearance?.theme) window.StudioTheme?.set?.(next.appearance.theme);
+                if(next.appearance?.scale) window.StudioScale?.set?.(next.appearance.scale);
+                if(next.language) window.StudioI18n?.set?.(next.language);
+                document.querySelectorAll('iframe').forEach(frame => {
+                    syncThemeToFrame(frame);
+                    syncScaleToFrame(frame);
+                    syncLanguageToFrame(frame);
+                });
+                return;
+            }
             forwardStudioApiChange(event.data);
         });
 
@@ -1904,7 +1925,6 @@
             restoreSidebarPinned();
             const id = PAGE_IDS.includes(localStorage.getItem(ACTIVE_PAGE_KEY)) ? localStorage.getItem(ACTIVE_PAGE_KEY) : DEFAULT_PAGE_ID;
             restoreLocalNav(id);
-            restoreSidebarSettings(id);
             const trigger = document.querySelector(`[onclick*="'${id}'"],[onclick*='"${id}"']`);
             switchUI(trigger, id, { skipRemember:true });
             document.documentElement.classList.remove('studio-route-booting');

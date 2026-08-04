@@ -26,14 +26,18 @@ class SidebarFooterCleanupTests(unittest.TestCase):
             self.assertNotIn(token, self.source)
 
     def test_required_settings_controls_remain(self):
+        self.assertEqual(self.source.count("switchUI(this, 'settings')"), 1)
+        self.assertIn('id="frame-settings"', self.source)
         for token in (
             "switchUI(this, 'api-settings')",
             'id="settings-fold-toggle"',
             'id="theme-toggle-btn"',
             'id="lang-toggle-btn"',
             "switchUI(this, 'comfyui-settings')",
+            'id="frame-api-settings"',
+            'id="frame-comfyui-settings"',
         ):
-            self.assertIn(token, self.source)
+            self.assertNotIn(token, self.source)
 
     def test_startup_no_longer_checks_for_updates(self):
         self.assertNotIn("\n            checkForUpdates();\n", self.source)

@@ -1610,6 +1610,12 @@ html.studio-theme-dark body .provider-card:not(.active) {
     color:var(--text);
 }
 
+html.embedded-settings body { background:transparent; min-height:0; }
+html.embedded-settings .page { min-height:0; padding:0 0 40px; }
+html.embedded-settings .wrap { max-width:none; margin:0; }
+html.embedded-settings .page-head { display:none; }
+html.embedded-settings .layout { align-items:start; }
+
 .provider-card-mediakit .provider-mark-mediakit {
     background:rgba(37,99,235,.1);
     color:#2563eb;

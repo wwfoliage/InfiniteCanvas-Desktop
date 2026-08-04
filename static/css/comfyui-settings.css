@@ -238,3 +238,9 @@ body.studio-theme-dark .pfield-bool-track:not(.on) .pfield-bool-thumb { backgrou
 .mini-port.out { right:-5px; }
 .mini-run { margin-top:10px; }
 @media (max-width:1100px) { .layout { grid-template-columns:1fr; } .sidebar, .preview { position:static; } }
+
+html.embedded-settings body { background:transparent; min-height:0; }
+html.embedded-settings .page { min-height:0; padding:0 0 40px; }
+html.embedded-settings .wrap { max-width:none; margin:0; }
+html.embedded-settings .page-head { display:none; }
+html.embedded-settings .layout { align-items:start; }

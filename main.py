@@ -12625,7 +12625,9 @@ def _download_http_error(exc: DownloadError) -> HTTPException:
 
 @app.get("/api/app-settings")
 def get_app_settings():
-    return settings_for_client(APP_SETTINGS.load())
+    payload = settings_for_client(APP_SETTINGS.load())
+    payload["migration_needed"] = not APP_SETTINGS.path.exists()
+    return payload
 
 
 @app.put("/api/app-settings")
