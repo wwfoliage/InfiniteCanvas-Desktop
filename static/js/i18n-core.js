@@ -4,7 +4,7 @@
     const dict = { zh: {}, en: {} };
 
     function lang(){
-        return localStorage.getItem(KEY) || DEFAULT_LANG;
+        return localStorage.getItem(KEY) === 'en' ? 'en' : DEFAULT_LANG;
     }
 
     function normalizeEntry(key, entry){
@@ -66,4 +66,10 @@
 
     window.StudioI18n = { t, apply, set, toggle, lang, register, entries };
     document.addEventListener('DOMContentLoaded', () => apply());
+    window.addEventListener('message', event => {
+        if(event.data?.type === 'studio-lang') set(event.data.lang);
+    });
+    window.addEventListener('storage', event => {
+        if(event.key === KEY) apply();
+    });
 })();

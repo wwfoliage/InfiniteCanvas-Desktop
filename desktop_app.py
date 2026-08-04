@@ -116,7 +116,7 @@ class UvicornRuntime:
 
 
 class DesktopApi:
-    ALLOWED_DIRECTORY_KINDS = {"downloads", "data", "cache", "logs"}
+    ALLOWED_DIRECTORY_KINDS = {"downloads", "data", "assets", "cache", "logs"}
 
     def __init__(
         self,
@@ -142,6 +142,8 @@ class DesktopApi:
             return Path(configured) if configured else default_download_directory()
         if kind == "data":
             return self.paths.data_dir
+        if kind == "assets":
+            return self.paths.assets_dir
         if kind == "cache":
             return self.paths.media_preview_dir
         return self.paths.logs_dir

@@ -14,8 +14,9 @@
     <script>
         (function(){
             try {
-                var theme = localStorage.getItem('studio_theme') || localStorage.getItem('canvas_theme') || 'light';
-                if(theme === 'dark') {
+                var theme = localStorage.getItem('studio_theme') || localStorage.getItem('canvas_theme') || 'system';
+                var dark = theme === 'dark' || (theme === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                if(dark) {
                     document.documentElement.classList.add('studio-theme-dark');
                     document.documentElement.classList.add('theme-dark');
                 }
@@ -1983,10 +1984,11 @@
         // --- 夜间模式 ---
 
         function syncThemeToFrame(iframe) {
-            const theme = (window.StudioTheme || {get: () => 'light'}).get();
+            const mode = (window.StudioTheme || {get: () => 'system'}).get();
+            const theme = (window.StudioTheme || {getResolved: () => mode === 'dark' ? 'dark' : 'light'}).getResolved();
             try {
                 if (iframe && iframe.contentWindow) {
-                    iframe.contentWindow.postMessage({ type: 'studio-theme', theme }, '*');
+                    iframe.contentWindow.postMessage({ type: 'studio-theme', theme, mode }, '*');
                 }
             } catch (e) {}
         }
@@ -2027,6 +2029,7 @@
         function updateThemeIcon(theme) {
             const moon = document.getElementById('icon-moon');
             const sun = document.getElementById('icon-sun');
+            if(!moon || !sun) return;
             const dark = theme === 'dark';
             if (dark) {
                 moon.style.display = 'none';

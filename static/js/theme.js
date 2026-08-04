@@ -2,14 +2,23 @@
     const KEY = 'studio_theme';
     const LEGACY_KEY = 'canvas_theme';
     const SCALE_KEY = 'studio_ui_scale_mode';
-    const SCALE_OPTIONS = ['auto', '60', '65', '70', '75', '80', '85', '90', '95', '100', '115', '125', '140'];
+    const THEME_OPTIONS = ['system', 'light', 'dark'];
+    const SCALE_OPTIONS = ['auto', '80', '90', '100', '110', '125'];
+    const systemThemeQuery = window.matchMedia?.('(prefers-color-scheme: dark)');
 
     function currentTheme(){
-        return localStorage.getItem(KEY) || localStorage.getItem(LEGACY_KEY) || 'light';
+        const saved = localStorage.getItem(KEY) || localStorage.getItem(LEGACY_KEY) || 'system';
+        return THEME_OPTIONS.includes(saved) ? saved : 'system';
+    }
+
+    function resolvedTheme(mode=currentTheme()){
+        if(mode === 'system') return systemThemeQuery?.matches ? 'dark' : 'light';
+        return mode === 'dark' ? 'dark' : 'light';
     }
 
     function applyTheme(theme){
-        const next = theme === 'dark' ? 'dark' : 'light';
+        const mode = THEME_OPTIONS.includes(theme) ? theme : 'system';
+        const next = resolvedTheme(mode);
         const dark = next === 'dark';
         document.documentElement.classList.toggle('studio-theme-dark', dark);
         document.documentElement.classList.toggle('theme-dark', dark);
@@ -17,7 +26,7 @@
             document.body.classList.toggle('studio-theme-dark', dark);
             document.body.classList.toggle('theme-dark', dark);
         }
-        window.dispatchEvent(new CustomEvent('studio-theme-change', { detail: { theme: next } }));
+        window.dispatchEvent(new CustomEvent('studio-theme-change', { detail: { theme: next, mode } }));
     }
 
     function ensureScaleStyle(){
@@ -232,9 +241,11 @@
     window.StudioTheme = {
         key: KEY,
         get: currentTheme,
+        getMode: currentTheme,
+        getResolved: () => resolvedTheme(currentTheme()),
         apply: applyTheme,
         set(theme){
-            const next = theme === 'dark' ? 'dark' : 'light';
+            const next = THEME_OPTIONS.includes(theme) ? theme : 'system';
             localStorage.setItem(KEY, next);
             localStorage.setItem(LEGACY_KEY, next);
             applyTheme(next);
@@ -258,7 +269,7 @@
         applyScale(currentScaleMode());
     });
     window.addEventListener('message', event => {
-        if(event.data?.type === 'studio-theme') applyTheme(event.data.theme);
+        if(event.data?.type === 'studio-theme') applyTheme(event.data.mode || event.data.theme);
         if(event.data?.type === 'studio-ui-scale') {
             const incomingScale = normalizeExternalScale(event.data.scale);
             if(incomingScale !== null) externalScaleValue = incomingScale;
@@ -272,4 +283,7 @@
     });
     window.addEventListener('resize', scheduleAutoScaleRefresh);
     window.addEventListener('scroll', lockScaledHorizontalScroll, { passive: true });
+    systemThemeQuery?.addEventListener?.('change', () => {
+        if(currentTheme() === 'system') applyTheme('system');
+    });
 })();

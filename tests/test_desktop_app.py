@@ -161,6 +161,11 @@ class DesktopAppTests(unittest.TestCase):
             self.assertTrue(result["ok"])
             opener.assert_called_once_with(str(paths.logs_dir.resolve()))
 
+            opener.reset_mock()
+            assets_result = api.open_directory("assets")
+            self.assertTrue(assets_result["ok"])
+            opener.assert_called_once_with(str(paths.assets_dir.resolve()))
+
     def test_logging_writes_to_user_log_directory(self):
         from desktop_app import close_logging, configure_logging
 
