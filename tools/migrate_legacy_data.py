@@ -12,6 +12,10 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 try:
     from tools.legacy_migration_core import (
         MigrationError,
@@ -61,13 +65,12 @@ PROTECTED_RELATIVE_PATHS = (
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     local_app_data = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
-    project_root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(
         description="Safely migrate InfiniteCanvas legacy user data"
     )
     parser.add_argument("--source", type=Path, default=Path(r"E:\InfiniteCanvas"))
     parser.add_argument("--target", type=Path, default=local_app_data / "InfiniteCanvas")
-    parser.add_argument("--workflow-root", type=Path, default=project_root / "workflows")
+    parser.add_argument("--workflow-root", type=Path, default=PROJECT_ROOT / "workflows")
     parser.add_argument(
         "--backup-root", type=Path, default=Path(r"E:\codex\无限画布资料\迁移备份")
     )

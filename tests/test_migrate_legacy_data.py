@@ -1,5 +1,6 @@
 import json
 import subprocess
+import sys
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -224,6 +225,17 @@ class MigrationFixture:
 
 
 class DryRunTests(unittest.TestCase):
+    def test_cli_help_runs_with_isolated_python_paths(self):
+        script = Path(__file__).resolve().parents[1] / "tools" / "migrate_legacy_data.py"
+        result = subprocess.run(
+            [sys.executable, "-I", str(script), "--help"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("--apply", result.stdout)
+
     def test_dry_run_report_does_not_change_target_or_include_secrets(self):
         with TemporaryDirectory() as directory:
             fixture = MigrationFixture(Path(directory))
