@@ -8,6 +8,7 @@ from unittest.mock import patch
 from tools.legacy_migration_core import MigrationPaths, sha256_file, write_json
 from tools.migrate_legacy_data import (
     build_plan,
+    execute_plan,
     is_infinitecanvas_running,
     parse_args,
     redacted_report,
@@ -69,6 +70,10 @@ class MigrationFixture:
         )
         write_json(
             self.source / "global_config.json", {"secret": self.legacy_secret}
+        )
+        write_json(
+            self.source / "data" / "mediakit_tasks.json",
+            {"tasks": [{"id": "legacy-media-task"}]},
         )
         write_json(
             self.source / "data" / "projects.json",
@@ -152,6 +157,16 @@ class MigrationFixture:
             b"current-preview"
         )
         (self.target / "API").mkdir(parents=True)
+        (self.target / "data" / "conversations").mkdir(parents=True)
+        (self.target / "data" / "conversations" / "current.json").write_text(
+            "current-conversation", encoding="utf-8"
+        )
+        (self.target / "logs").mkdir(parents=True)
+        (self.target / "logs" / "current.log").write_text(
+            "current-log", encoding="utf-8"
+        )
+        (self.target / "webview").mkdir(parents=True)
+        (self.target / "webview" / "profile.dat").write_bytes(b"current-webview")
         (self.target / "API" / ".env").write_text(
             f"API_KEY={self.current_secret}", encoding="utf-8"
         )
@@ -235,6 +250,145 @@ class DryRunTests(unittest.TestCase):
         self.assertFalse(args.apply)
         self.assertFalse(args.validate_only)
         self.assertEqual(Path(r"C:\Local") / "InfiniteCanvas", args.target)
+
+
+class ApplyTests(unittest.TestCase):
+    def test_apply_merges_data_preserves_config_and_creates_backup(self):
+        with TemporaryDirectory() as directory:
+            fixture = MigrationFixture(Path(directory))
+            protected_before = {
+                relative: sha256_file(fixture.target / Path(relative))
+                for relative in (
+                    "API/.env",
+                    "data/api_providers.json",
+                    "global_config.json",
+                )
+            }
+            plan = build_plan(fixture.paths, run_id="20260804-apply")
+
+            report, report_path = execute_plan(
+                plan, process_checker=lambda: False
+            )
+
+            self.assertEqual("completed", report["status"])
+            self.assertTrue((fixture.target / "assets" / "output" / "current.png").is_file())
+            self.assertTrue((fixture.target / "assets" / "output" / "old.png").is_file())
+            self.assertTrue((fixture.target / "data" / "canvases" / "current.json").is_file())
+            self.assertTrue((fixture.target / "data" / "canvases" / "old.json").is_file())
+            self.assertTrue(
+                (fixture.target / "data" / "mediakit_tasks.json").is_file()
+            )
+            self.assertEqual(
+                "current-conversation",
+                (
+                    fixture.target / "data" / "conversations" / "current.json"
+                ).read_text(encoding="utf-8"),
+            )
+            self.assertEqual(
+                "current-log",
+                (fixture.target / "logs" / "current.log").read_text(encoding="utf-8"),
+            )
+            self.assertEqual(
+                b"current-webview",
+                (fixture.target / "webview" / "profile.dat").read_bytes(),
+            )
+
+            projects = json.loads(
+                (fixture.target / "data" / "projects.json").read_text(encoding="utf-8")
+            )["projects"]
+            self.assertEqual(3, len(projects))
+            legacy_project = next(
+                item for item in projects if item["name"] == "默认项目（旧版）"
+            )
+            old_canvas = json.loads(
+                (fixture.target / "data" / "canvases" / "old.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(legacy_project["id"], old_canvas["project"])
+
+            history = json.loads(
+                (fixture.target / "history.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual([20, 10], [item["timestamp"] for item in history])
+            assets = json.loads(
+                (fixture.target / "data" / "asset_library.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual("default", assets["active_library_id"])
+            self.assertEqual(2, len(assets["libraries"]))
+            prompts = json.loads(
+                (fixture.target / "data" / "prompt_libraries.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(2, len(prompts["libraries"][0]["items"]))
+
+            for relative, expected_hash in protected_before.items():
+                self.assertEqual(
+                    expected_hash, sha256_file(fixture.target / Path(relative))
+                )
+            backup_path = Path(report["backup_path"])
+            self.assertTrue((backup_path / "history.json").is_file())
+            self.assertTrue((backup_path.parent / "backup-manifest.json").is_file())
+            serialized = report_path.read_text(encoding="utf-8")
+            self.assertNotIn(fixture.current_secret, serialized)
+            self.assertNotIn(fixture.legacy_secret, serialized)
+            self.assertNotIn("private prompt body", serialized)
+
+    def test_post_commit_failure_restores_exact_original_tree(self):
+        with TemporaryDirectory() as directory:
+            fixture = MigrationFixture(Path(directory))
+            before = tree_manifest(fixture.target)
+            plan = build_plan(fixture.paths, run_id="20260804-rollback")
+
+            def fail_validation(*args, **kwargs):
+                raise RuntimeError("injected validation failure")
+
+            with self.assertRaisesRegex(Exception, "injected validation failure"):
+                execute_plan(
+                    plan,
+                    process_checker=lambda: False,
+                    post_commit_validator=fail_validation,
+                )
+
+            self.assertEqual(before, tree_manifest(fixture.target))
+            report_path = (
+                fixture.reports
+                / "20260804-rollback"
+                / "migration-report.json"
+            )
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            self.assertEqual("rolled-back", report["status"])
+            self.assertTrue(Path(report["backup_path"]).is_dir())
+            failed = fixture.target.parent / "target-migration-failed-20260804-rollback"
+            self.assertTrue(failed.is_dir())
+
+    def test_apply_is_idempotent(self):
+        with TemporaryDirectory() as directory:
+            fixture = MigrationFixture(Path(directory))
+            first_plan = build_plan(fixture.paths, run_id="20260804-first")
+            first_report, _ = execute_plan(first_plan, process_checker=lambda: False)
+
+            second_plan = build_plan(fixture.paths, run_id="20260804-second")
+            second_report, _ = execute_plan(second_plan, process_checker=lambda: False)
+
+            self.assertEqual(first_report["validation"], second_report["validation"])
+            projects = json.loads(
+                (fixture.target / "data" / "projects.json").read_text(encoding="utf-8")
+            )["projects"]
+            self.assertEqual(3, len(projects))
+            self.assertEqual(
+                1,
+                sum(item["name"] == "默认项目（旧版）" for item in projects),
+            )
+            asset_libraries = json.loads(
+                (fixture.target / "data" / "asset_library.json").read_text(
+                    encoding="utf-8"
+                )
+            )["libraries"]
+            self.assertEqual(2, len(asset_libraries))
 
 
 class ProcessGuardTests(unittest.TestCase):

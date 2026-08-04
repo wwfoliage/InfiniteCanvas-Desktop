@@ -62,7 +62,13 @@ def merge_projects(
         old_id = str(item.get("id"))
         candidate = dict(item)
         existing = by_id.get(old_id)
-        if existing is not None and existing != candidate:
+        existing_semantic = {
+            key: value for key, value in (existing or {}).items() if key != "order"
+        }
+        candidate_semantic = {
+            key: value for key, value in candidate.items() if key != "order"
+        }
+        if existing is not None and existing_semantic != candidate_semantic:
             candidate["id"] = stable_legacy_id("project", old_id)
             candidate["name"] = legacy_name(candidate.get("name", ""))
 
