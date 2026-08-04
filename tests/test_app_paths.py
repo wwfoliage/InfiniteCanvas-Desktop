@@ -34,6 +34,14 @@ class AppPathsTests(unittest.TestCase):
             self.assertEqual(paths.data_dir, local / "InfiniteCanvas")
             self.assertEqual(paths.api_env_file, local / "InfiniteCanvas" / "API" / ".env")
             self.assertEqual(paths.assets_dir, local / "InfiniteCanvas" / "assets")
+            self.assertEqual(
+                paths.app_settings_file,
+                local / "InfiniteCanvas" / "data" / "app_settings.json",
+            )
+            self.assertEqual(
+                paths.download_temp_dir,
+                local / "InfiniteCanvas" / "data" / "download_temp",
+            )
 
     def test_explicit_data_directory_has_priority(self):
         from app_paths import resolve_app_paths
@@ -78,6 +86,7 @@ class AppPathsTests(unittest.TestCase):
             self.assertTrue((paths.assets_dir / "input").is_dir())
             self.assertTrue((paths.assets_dir / "output").is_dir())
             self.assertTrue(paths.logs_dir.is_dir())
+            self.assertTrue(paths.download_temp_dir.is_dir())
 
 
 if __name__ == "__main__":

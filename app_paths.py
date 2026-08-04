@@ -116,6 +116,14 @@ class AppPaths:
         return self.runtime_data_dir / "canvas_media_tasks.json"
 
     @property
+    def app_settings_file(self) -> Path:
+        return self.runtime_data_dir / "app_settings.json"
+
+    @property
+    def download_temp_dir(self) -> Path:
+        return self.runtime_data_dir / "download_temp"
+
+    @property
     def projects_file(self) -> Path:
         return self.runtime_data_dir / "projects.json"
 
@@ -183,6 +191,7 @@ def ensure_user_directories(paths: AppPaths) -> None:
         paths.conversation_dir,
         paths.canvas_dir,
         paths.media_preview_dir,
+        paths.download_temp_dir,
         paths.logs_dir,
         paths.webview_data_dir,
     )
