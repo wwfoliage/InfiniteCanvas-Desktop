@@ -3533,13 +3533,7 @@ async function downloadOutputNodeImages(nodeId){
         });
         if(!res.ok) throw new Error(await responseErrorMessage(res, tr('canvas.outputDownloadEmpty')));
         const blob = await res.blob();
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `${(canvas?.title || 'canvas-output').slice(0, 48)}-${node.id}.zip`;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+        await StudioDownloads.saveBlob(blob, `${(canvas?.title || 'canvas-output').slice(0, 48)}-${node.id}.zip`, '画布导出');
     } catch(err) {
         alert(err.message || tr('canvas.outputDownloadEmpty'));
     }
@@ -3564,14 +3558,7 @@ async function downloadGroupNodeImages(groupId){
         });
         if(!res.ok) throw new Error(await responseErrorMessage(res, tr('canvas.outputDownloadEmpty')));
         const blob = await res.blob();
-        const href = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = href;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        setTimeout(() => URL.revokeObjectURL(href), 1200);
+        await StudioDownloads.saveBlob(blob, filename, '画布导出');
     } catch(err) {
         alert(err.message || tr('canvas.outputDownloadEmpty'));
     }
@@ -13136,16 +13123,7 @@ function createImageCardFromOutput(url, point){
     scheduleSave();
 }
 async function downloadUrl(url, filename){
-    const res = await fetch(url);
-    if(!res.ok) throw new Error('下载失败');
-    const blob = await res.blob();
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    return StudioDownloads.saveUrl(url, filename);
 }
 function setOutputCompareMode(active){
     outputPreview.classList.toggle('compare-mode', active);
@@ -14075,14 +14053,8 @@ function workflowFilename(ext){
     const stamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15);
     return `${title}-${stamp}.${ext}`;
 }
-function downloadBlob(blob, filename){
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(link.href), 1200);
+function downloadBlob(blob, filename, category=''){
+    return StudioDownloads.saveBlob(blob, filename, category);
 }
 function downloadUrl(url, filename='download'){
     if(!url) return Promise.resolve(false);
@@ -14090,14 +14062,7 @@ function downloadUrl(url, filename='download'){
     const href = (raw.startsWith('data:') || raw.startsWith('blob:') || raw.startsWith('/api/download-output'))
         ? raw
         : `/api/download-output?url=${encodeURIComponent(raw)}&name=${encodeURIComponent(filename || outputDownloadName(raw))}`;
-    const link = document.createElement('a');
-    link.href = href;
-    link.download = filename || '';
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    return Promise.resolve(true);
+    return StudioDownloads.saveUrl(href, filename || outputDownloadName(raw));
 }
 function openWorkflowTransferModal(){
     if(!canvas){ setStatus(tr('canvas.needCanvas')); return; }
@@ -14141,7 +14106,7 @@ async function exportSelectedWorkflow(includeResources=false){
     try {
         if(!includeResources){
             const filename = workflowFilename('json');
-            downloadBlob(new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'}), filename);
+            await downloadBlob(new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'}), filename, '工作流');
             setStatus('已导出工作流 JSON');
             return;
         }
@@ -14153,7 +14118,7 @@ async function exportSelectedWorkflow(includeResources=false){
         });
         if(!res.ok) throw new Error(await responseErrorMessage(res, '导出工作流失败'));
         const blob = await res.blob();
-        downloadBlob(blob, filename);
+        await downloadBlob(blob, filename, '工作流');
         setStatus('已导出包含资源的工作流包');
     } catch(err) {
         showErrorModal(err.message || '导出工作流失败', '导出工作流');

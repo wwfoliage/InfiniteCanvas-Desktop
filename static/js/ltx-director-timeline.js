@@ -3108,11 +3108,8 @@ class TimelineEditor {
       const saveBtn = document.createElement("button");
       saveBtn.className = "pr-gap-menu-btn";
       saveBtn.innerHTML = `Save Image`;
-      saveBtn.onclick = () => {
-        const a = document.createElement("a");
-        a.href = seg.imageB64;
-        a.download = "timeline_image.jpg";
-        a.click();
+      saveBtn.onclick = async () => {
+        await StudioDownloads.saveUrl(seg.imageB64, "timeline_image.jpg", "图片");
         this.dismissContextMenu();
       };
       menu.appendChild(saveBtn);

@@ -20,6 +20,7 @@
     <script src="/static/vendor/js/tailwindcss-cdn.js?v=2026.07.23.1785077995"></script>
     <script src="/static/vendor/js/lucide.js?v=2026.07.23.1785077995"></script>
     <script src="/static/js/theme.js?v=2026.07.23.1785077995"></script>
+    <script src="/static/js/downloads.js?v=2026.08.04.1"></script>
     <script src="/static/js/i18n.js?v=2026.07.23.1785328664"></script>
     <script src="/static/js/image-preview.js?v=2026.07.23.1785077995"></script>
     <script src="/static/js/history-bulk-manager.js?v=2026.07.23.1785077995"></script>
@@ -308,7 +309,7 @@
                     <img id="outputImg"
                         class="hidden w-full h-full object-contain p-8 cursor-zoom-in transition-all duration-700"
                         onclick="zoomImage()">
-                    <a id="downloadBtn" href="#" download
+                    <a id="downloadBtn" href="#" onclick="downloadPrimaryImage(event)"
                         class="hidden absolute top-8 right-8 w-12 h-12 bg-white/90 backdrop-blur-md shadow-2xl rounded-2xl flex items-center justify-center hover:bg-black hover:text-white active:scale-95 transition-all">
                         <i data-lucide="download" class="w-4 h-4"></i>
                     </a>
@@ -824,13 +825,16 @@
 
         function zoomImage() { if (currentResult) openLightbox(currentResult); }
 
+        function downloadPrimaryImage(event) {
+            event?.preventDefault();
+            const url = document.getElementById('outputImg').src;
+            if (url) StudioDownloads.saveUrl(url, `Klein-${Date.now()}.png`, '图片');
+        }
+
         function downloadLightboxImage() {
             const url = currentLightboxData?.images[0];
             if (!url) return;
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `Klein-${Date.now()}.png`;
-            link.click();
+            StudioDownloads.saveUrl(url, `Klein-${Date.now()}.png`, '图片');
         }
 
         async function deleteHistoryItem(ts, ev) {

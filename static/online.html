@@ -19,6 +19,7 @@
     <script src="/static/vendor/js/tailwindcss-cdn.js?v=2026.07.23.1785077995"></script>
     <script src="/static/vendor/js/lucide.js?v=2026.07.23.1785077995"></script>
     <script src="/static/js/theme.js?v=2026.07.23.1785077995"></script>
+    <script src="/static/js/downloads.js?v=2026.08.04.1"></script>
     <script src="/static/js/i18n.js?v=2026.07.23.1785328664"></script>
     <script src="/static/js/image-preview.js?v=2026.07.23.1785077995"></script>
     <script src="/static/js/history-bulk-manager.js?v=2026.07.23.1785077995"></script>
@@ -199,7 +200,7 @@
                     <div id="placeholder" class="text-center space-y-4 opacity-20"><i data-lucide="layout" class="w-12 h-12 mx-auto stroke-[1px]"></i><p class="text-[10px] font-black tracking-[0.5em] uppercase" data-i18n="online.canvasReady">Canvas Ready</p></div>
                     <div id="loader" class="hidden text-center space-y-4"><div class="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin mx-auto"></div><p class="text-[10px] font-black tracking-[0.5em] uppercase" data-i18n="online.generating">Generating</p></div>
                     <img id="outputImg" class="hidden w-full h-full object-contain p-8 cursor-zoom-in" onclick="zoomImage()">
-                    <a id="downloadBtn" href="#" download class="hidden absolute top-8 right-8 w-12 h-12 bg-white/90 shadow-2xl rounded-2xl flex items-center justify-center hover:bg-black hover:text-white"><i data-lucide="download" class="w-4 h-4"></i></a>
+                    <a id="downloadBtn" href="#" onclick="downloadPrimaryImage(event)" class="hidden absolute top-8 right-8 w-12 h-12 bg-white/90 shadow-2xl rounded-2xl flex items-center justify-center hover:bg-black hover:text-white"><i data-lucide="download" class="w-4 h-4"></i></a>
                 </div>
             </div>
         </main>
@@ -690,18 +691,14 @@
             e.stopPropagation();
             const url = currentLightboxData?.images?.[0];
             if(!url) return;
-            const res = await fetch(url);
-            if(!res.ok) return alert('下载失败');
-            const blob = await res.blob();
             const clean = url.split('?')[0];
             const ext = clean.includes('.') ? clean.split('.').pop() : 'png';
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `online-image-${Date.now()}.${ext || 'png'}`;
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+            await StudioDownloads.saveUrl(url, `online-image-${Date.now()}.${ext || 'png'}`, '图片');
+        }
+        function downloadPrimaryImage(event){
+            event?.preventDefault();
+            const url = document.getElementById('outputImg').src;
+            if(url) StudioDownloads.saveUrl(url, `online-image-${Date.now()}.png`, '图片');
         }
         function zoomImage(){ if(currentResult) openLightbox(currentResult); }
         function applySameStyle(){

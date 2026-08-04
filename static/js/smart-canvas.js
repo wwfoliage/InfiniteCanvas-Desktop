@@ -751,15 +751,8 @@ async function responseErrorMessage(response, fallback='请求失败'){
         }
     }
 }
-function downloadBlob(blob, filename){
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename || 'smart-canvas-workflow.json';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 800);
+function downloadBlob(blob, filename, category=''){
+    return StudioDownloads.saveBlob(blob, filename || 'smart-canvas-workflow.json', category);
 }
 function smartWorkflowFilename(ext='json'){
     const title = (canvas?.title || document.getElementById('smartTitle')?.textContent || 'smart-canvas').trim();
@@ -846,7 +839,7 @@ async function exportSelectedSmartWorkflow(includeResources=false){
     }
     try {
         if(!includeResources){
-            downloadBlob(new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'}), smartWorkflowFilename('json'));
+            await downloadBlob(new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'}), smartWorkflowFilename('json'), '工作流');
             toast('已导出智能画布工作流 JSON');
             return;
         }
@@ -861,7 +854,7 @@ async function exportSelectedSmartWorkflow(includeResources=false){
             body:JSON.stringify({...payload, include_resources:true, filename})
         });
         if(!res.ok) throw new Error(await responseErrorMessage(res, '导出工作流失败'));
-        downloadBlob(await res.blob(), filename);
+        await downloadBlob(await res.blob(), filename, '工作流');
         if(smartWorkflowExportMeta){
             smartWorkflowExportMeta.classList.remove('busy');
             smartWorkflowExportMeta.classList.add('success');
@@ -6875,22 +6868,14 @@ function downloadPreviewImage(){
     const image = node?.images?.[previewNavState.index];
     if(!image?.url) return;
     const name = downloadNameForMediaItem(image, 'image');
-    const link = document.createElement('a');
-    link.href = `/api/download-output?url=${encodeURIComponent(image.url)}&name=${encodeURIComponent(name)}`;
-    link.download = name;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    return StudioDownloads.saveUrl(`/api/download-output?url=${encodeURIComponent(image.url)}&name=${encodeURIComponent(name)}`, name, '图片');
 }
 function downloadPreviewFile(item){
     if(!item?.url) return;
     const name = downloadNameForMediaItem(item, 'output');
-    const link = document.createElement('a');
-    link.href = `/api/download-output?url=${encodeURIComponent(item.url)}&name=${encodeURIComponent(name)}`;
-    link.download = name;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    const kind = mediaKindForItem(item);
+    const category = kind === 'video' ? '视频' : kind === 'audio' ? '音频' : kind === 'image' ? '图片' : '其他';
+    return StudioDownloads.saveUrl(`/api/download-output?url=${encodeURIComponent(item.url)}&name=${encodeURIComponent(name)}`, name, category);
 }
 function previewDownloadGroupItems(){
     // 分组预览：整组所有成员图片按阅读顺序打包。
@@ -6928,14 +6913,7 @@ async function zipDownloadImageItems(title, items){
         });
         if(!response.ok) throw new Error((await response.text()) || '批量下载失败');
         const blob = await response.blob();
-        const href = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = href;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        setTimeout(() => URL.revokeObjectURL(href), 1200);
+        await StudioDownloads.saveBlob(blob, filename, '图片');
     } catch(e) {
         toast((e.message || '批量下载失败').slice(0, 160));
     }

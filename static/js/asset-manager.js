@@ -2560,15 +2560,9 @@ async function uploadWorkflowFiles(files){
     render();
     setStatus(`已上传 ${data.items?.length || 0} 个工作流`);
 }
-function downloadUrl(url, filename='download'){
-    if(!url) return;
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename || '';
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+function downloadUrl(url, filename='download', category=''){
+    if(!url) return Promise.resolve(false);
+    return StudioDownloads.saveUrl(url, filename, category);
 }
 async function exportWorkflowItems(ids){
     const items = (ids || []).map(id => findWorkflowItem(id)).filter(item => item?.url);
@@ -2576,7 +2570,7 @@ async function exportWorkflowItems(ids){
     if(items.length === 1){
         const item = items[0];
         const ext = String(item.url || '').toLowerCase().split('?')[0].endsWith('.json') ? '.json' : '.zip';
-        downloadUrl(item.url, `${item.name || 'workflow'}${ext}`);
+        await downloadUrl(item.url, `${item.name || 'workflow'}${ext}`, '工作流');
         setStatus('已导出工作流');
         return;
     }
@@ -2587,13 +2581,7 @@ async function exportWorkflowItems(ids){
     });
     if(!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || '导出工作流失败');
     const blob = await res.blob();
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'workflows.zip';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(link.href), 1200);
+    await StudioDownloads.saveBlob(blob, 'workflows.zip', '工作流');
     setStatus(`已导出 ${items.length} 个工作流`);
 }
 async function downloadCanvasAssetItems(ids){
@@ -2604,7 +2592,7 @@ async function downloadCanvasAssetItems(ids){
     }
     if(items.length === 1){
         const item = items[0];
-        downloadUrl(item.url, item.name || 'canvas-asset');
+        await downloadUrl(item.url, item.name || 'canvas-asset');
         setStatus('已下载画布资产');
         return;
     }
@@ -2616,13 +2604,7 @@ async function downloadCanvasAssetItems(ids){
     });
     if(!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || '下载画布资产失败');
     const blob = await res.blob();
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = items.length === 1 ? (items[0].name || 'canvas-asset') : 'canvas-assets.zip';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(link.href), 1200);
+    await StudioDownloads.saveBlob(blob, items.length === 1 ? (items[0].name || 'canvas-asset') : 'canvas-assets.zip');
     setStatus(`已下载 ${items.length} 个画布资产`);
 }
 function assetDownloadName(item){
@@ -2633,13 +2615,13 @@ function assetDownloadName(item){
     if(ext && !name.toLowerCase().endsWith(ext.toLowerCase())) name += ext;
     return name;
 }
-function downloadAssetItem(id){
+async function downloadAssetItem(id){
     const item = findAssetItem(id);
     if(!item || !item.url){ setStatus('没有可下载的素材'); return; }
     const name = assetDownloadName(item);
     // 走 /api/download-output 强制以附件形式下载（带正确文件名/后缀），而不是在浏览器里打开预览。
-    downloadUrl(`/api/download-output?url=${encodeURIComponent(item.url)}&name=${encodeURIComponent(name)}`, name);
-    setStatus('已开始下载');
+    await downloadUrl(`/api/download-output?url=${encodeURIComponent(item.url)}&name=${encodeURIComponent(name)}`, name);
+    setStatus('已下载');
 }
 const SMART_CANVAS_ASSET_INBOX_KEY = 'smart_canvas_asset_inbox';
 function canvasInboxAssetFromItem(item){
@@ -2668,7 +2650,7 @@ function copySelectedAssetsToCanvas(){
 async function downloadSelectedAssets(){
     const items = [...selectedAssetIds].map(id => findAssetItem(id)).filter(it => it?.url);
     if(!items.length){ setStatus('没有可下载的素材'); return; }
-    if(items.length === 1){ downloadAssetItem(items[0].id); return; }
+    if(items.length === 1){ await downloadAssetItem(items[0].id); return; }
     setStatus(`正在打包 ${items.length} 个素材...`);
     try {
         const res = await fetch('/api/canvas-assets/download', {
@@ -2678,29 +2660,23 @@ async function downloadSelectedAssets(){
         });
         if(!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || '下载失败');
         const blob = await res.blob();
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = 'assets.zip';
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        setTimeout(() => URL.revokeObjectURL(link.href), 1200);
+        await StudioDownloads.saveBlob(blob, 'assets.zip');
         setStatus(`已下载 ${items.length} 个素材`);
     } catch(err){
         setStatus(err.message || '下载失败');
     }
 }
-function downloadLocalUpload(id){
+async function downloadLocalUpload(id){
     const item = findLocalUpload(id);
     if(!item || !item.url){ setStatus('没有可下载的素材'); return; }
     const name = assetDownloadName(item);
-    downloadUrl(`/api/download-output?url=${encodeURIComponent(item.url)}&name=${encodeURIComponent(name)}`, name);
-    setStatus('已开始下载');
+    await downloadUrl(`/api/download-output?url=${encodeURIComponent(item.url)}&name=${encodeURIComponent(name)}`, name);
+    setStatus('已下载');
 }
 async function downloadSelectedLocalUploads(){
     const items = [...selectedLocalUploadIds].map(id => findLocalUpload(id)).filter(it => it?.url);
     if(!items.length){ setStatus('没有可下载的素材'); return; }
-    if(items.length === 1){ downloadLocalUpload(items[0].id); return; }
+    if(items.length === 1){ await downloadLocalUpload(items[0].id); return; }
     setStatus(`正在打包 ${items.length} 个素材...`);
     try {
         const res = await fetch('/api/canvas-assets/download', {
@@ -2710,13 +2686,7 @@ async function downloadSelectedLocalUploads(){
         });
         if(!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || '下载失败');
         const blob = await res.blob();
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = 'local-assets.zip';
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        setTimeout(() => URL.revokeObjectURL(link.href), 1200);
+        await StudioDownloads.saveBlob(blob, 'local-assets.zip');
         setStatus(`已下载 ${items.length} 个素材`);
     } catch(err){
         setStatus(err.message || '下载失败');
@@ -3348,7 +3318,7 @@ async function handleClick(event){
     if(target.closest?.('[data-localup-paste-clipboard]')){ await pasteLocalUploadClipboard(); return; }
     if(target.closest?.('[data-localup-clear-clipboard]')){ localUploadClipboard = null; render(); return; }
     const localUpDownload = target.closest?.('[data-localup-download]');
-    if(localUpDownload){ downloadLocalUpload(localUpDownload.dataset.localupDownload || ''); return; }
+    if(localUpDownload){ await downloadLocalUpload(localUpDownload.dataset.localupDownload || ''); return; }
     if(target.closest?.('[data-localup-delete-selected]')){ await deleteLocalAssets([...selectedLocalUploadIds]); return; }
     if(target.closest?.('[data-local-classify-toggle]')){ localClassifyPromptOpen = !localClassifyPromptOpen; render(); return; }
     if(target.closest?.('[data-local-classify-run]')){ await runLocalUploadClassifySelected(); return; }
@@ -3583,7 +3553,7 @@ async function handleClick(event){
     const assetDelete = target.closest?.('[data-asset-delete]');
     if(assetDelete){ await deleteAssetItem(assetDelete.dataset.assetDelete || ''); return; }
     const assetDownload = target.closest?.('[data-asset-download]');
-    if(assetDownload){ downloadAssetItem(assetDownload.dataset.assetDownload || ''); return; }
+    if(assetDownload){ await downloadAssetItem(assetDownload.dataset.assetDownload || ''); return; }
     const assetOpen = target.closest?.('[data-asset-open]');
     if(assetOpen){ openAssetItem(assetOpen.dataset.assetOpen || ''); return; }
     const avatarCopy = target.closest?.('[data-avatar-copy]');

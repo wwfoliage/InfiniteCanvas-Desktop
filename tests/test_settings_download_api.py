@@ -90,6 +90,13 @@ class SettingsDownloadApiTests(unittest.TestCase):
         self.assertEqual(raised.exception.status_code, 400)
         self.assertEqual(raised.exception.detail["code"], "invalid_download")
 
+    def test_download_output_wrapper_is_unwrapped_before_saving(self):
+        wrapped = "/api/download-output?url=https%3A%2F%2Fexample.com%2Fimage.png&name=image.png"
+        self.assertEqual(
+            main.normalized_download_source_url(wrapped),
+            "https://example.com/image.png",
+        )
+
     def test_storage_and_cache_routes_use_isolated_allowlist(self):
         self.paths.media_preview_dir.joinpath("preview.jpg").write_bytes(b"preview")
         report = main.get_storage_report()

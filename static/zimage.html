@@ -20,6 +20,7 @@
     <script src="/static/vendor/js/tailwindcss-cdn.js?v=2026.07.23.1785077995"></script>
     <script src="/static/vendor/js/lucide.js?v=2026.07.23.1785077995"></script>
     <script src="/static/js/theme.js?v=2026.07.23.1785077995"></script>
+    <script src="/static/js/downloads.js?v=2026.08.04.1"></script>
     <script src="/static/js/i18n.js?v=2026.07.23.1785328664"></script>
     <script src="/static/js/image-preview.js?v=2026.07.23.1785077995"></script>
     <script src="/static/js/history-bulk-manager.js?v=2026.07.23.1785077995"></script>
@@ -613,8 +614,8 @@
         }
         function handleOutsideClick(e) { if (e.target.id === 'lightbox') closeLightbox(); }
         function downloadImage() {
-            const a = document.createElement('a'); a.href = document.getElementById('lightboxImg').src;
-            a.download = `Art-${Date.now()}.png`; a.click();
+            const url = document.getElementById('lightboxImg').src;
+            if(url) StudioDownloads.saveUrl(url, `Art-${Date.now()}.png`, '图片');
         }
         function applySameStyle() {
             document.getElementById('prompt').value = document.getElementById('lightboxPrompt').innerText;

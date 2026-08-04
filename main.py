@@ -12596,6 +12596,16 @@ def download_local_path_from_url(url: str):
     return Path(path).resolve() if path and os.path.isfile(path) else None
 
 
+def normalized_download_source_url(url: str) -> str:
+    raw = str(url or "").strip()
+    parsed = urllib.parse.urlsplit(raw)
+    if parsed.scheme == "" and parsed.path == "/api/download-output":
+        nested = urllib.parse.parse_qs(parsed.query).get("url", [""])[0]
+        if nested:
+            raw = nested
+    return rewrite_runninghub_file_url(raw)
+
+
 def _download_http_error(exc: DownloadError) -> HTTPException:
     if isinstance(exc, DownloadValidationError):
         status = 400
@@ -12633,7 +12643,8 @@ def put_app_settings(payload: Dict[str, Any]):
 def save_download_url(payload: DownloadUrlRequest):
     try:
         return DOWNLOAD_MANAGER.save_url(
-            DownloadRequest(payload.filename, payload.category), payload.url
+            DownloadRequest(payload.filename, payload.category),
+            normalized_download_source_url(payload.url),
         ).as_dict()
     except DownloadError as exc:
         raise _download_http_error(exc) from exc

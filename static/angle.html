@@ -20,6 +20,7 @@
     <script src="/static/vendor/js/tailwindcss-cdn.js?v=2026.07.23.1785077995"></script>
     <script src="/static/vendor/js/lucide.js?v=2026.07.23.1785077995"></script>
     <script src="/static/js/theme.js?v=2026.07.23.1785077995"></script>
+    <script src="/static/js/downloads.js?v=2026.08.04.1"></script>
     <script src="/static/js/i18n.js?v=2026.07.23.1785328664"></script>
     <script src="/static/js/image-preview.js?v=2026.07.23.1785077995"></script>
     <script src="/static/js/history-bulk-manager.js?v=2026.07.23.1785077995"></script>
@@ -489,7 +490,7 @@
                             class="hidden w-full h-full object-contain p-8 cursor-zoom-in transition-all duration-700 hover:scale-[1.02]"
                             onclick="zoomImage()">
 
-                        <a id="downloadBtn" href="#" download
+                        <a id="downloadBtn" href="#" onclick="downloadPrimaryImage(event)"
                             class="hidden absolute bottom-8 right-8 w-14 h-14 bg-white shadow-2xl rounded-2xl flex items-center justify-center hover:bg-black hover:text-white transition-all duration-500 border border-gray-100">
                             <i data-lucide="download" class="w-5 h-5"></i>
                         </a>
@@ -1167,7 +1168,6 @@
 
                 downloadBtn.href = data.images[0];
                 downloadBtn.classList.remove('hidden');
-                downloadBtn.download = `Angle-${Date.now()}.png`;
 
                 btn.style.backgroundColor = '';
                 btn.innerHTML = `<i data-lucide="zap" class="w-4 h-4 text-yellow-400"></i><span id="btnText">${tr('studio.generateAngle')}</span>`;
@@ -1310,14 +1310,15 @@
             if (e.target.id === 'lightbox') closeLightbox();
         }
 
+        function downloadPrimaryImage(event) {
+            event?.preventDefault();
+            const imgUrl = document.getElementById('outputImg').src;
+            if (imgUrl) StudioDownloads.saveUrl(imgUrl, `Angle-${Date.now()}.png`, '图片');
+        }
+
         function downloadLightboxImage() {
             const imgUrl = document.getElementById('lightboxImg').src;
-            const link = document.createElement('a');
-            link.href = imgUrl;
-            link.download = `Angle-Master-${Date.now()}.png`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            if (imgUrl) StudioDownloads.saveUrl(imgUrl, `Angle-Master-${Date.now()}.png`, '图片');
         }
 
         function zoomImage() {
