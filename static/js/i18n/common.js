@@ -1,6 +1,7 @@
 (function(){
     if(!window.StudioI18n) return;
     window.StudioI18n.register({
+        "common.settings": { zh: "设置", en: "Settings" },
         "common.apiSettings": { zh: "API 设置", en: "API Settings" },
         "common.comfyuiSettings": { zh: "工作流设置", en: "Workflow Settings" },
         "common.darkMode": { zh: "黑夜模式", en: "Dark Mode" },

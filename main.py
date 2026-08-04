@@ -197,7 +197,6 @@ MODELSCOPE_TREE_URL = "https://www.modelscope.ai/api/v1/studio/daniel8152/Infini
 async def startup_event():
     global GLOBAL_LOOP
     GLOBAL_LOOP = asyncio.get_running_loop()
-    sync_static_html_versions()
     # 启动时整理资产库：给所有图片分组（含默认角色/场景）建好文件夹，并把根目录里的旧素材归整进去。
     try:
         await asyncio.to_thread(migrate_asset_library_into_dirs)
@@ -1723,7 +1722,12 @@ def versioned_static_html(html: str) -> str:
     if not version:
         return html
     safe_version = urllib.parse.quote(version, safe="._-")
-    pattern = re.compile(r'(?P<prefix>(?:src|href)=["\']|@import\s+url\(["\'])(?P<url>/static/[^"\')?#]+(?:\.(?:js|css|html)))(?:\?v=[^"\')#]*)?', re.I)
+    pattern = re.compile(
+        r'(?P<prefix>(?:src|href)=["\']|@import\s+url\(["\'])'
+        r'(?P<url>/static/[^"\')?#]+(?:\.(?:js|css|html)))'
+        r'(?P<query>\?[^"\')#]*)?',
+        re.I,
+    )
     def replace(match):
         url = match.group("url")
         cache_version = safe_version
@@ -1735,7 +1739,13 @@ def versioned_static_html(html: str) -> str:
                 cache_version = f"{safe_version}.{int(os.path.getmtime(path))}"
         except Exception:
             pass
-        return f"{match.group('prefix')}{url}?v={cache_version}"
+        query = urllib.parse.parse_qsl(
+            (match.group("query") or "").lstrip("?"),
+            keep_blank_values=True,
+        )
+        query = [(key, value) for key, value in query if key.lower() != "v"]
+        query.append(("v", cache_version))
+        return f"{match.group('prefix')}{url}?{urllib.parse.urlencode(query)}"
     return pattern.sub(replace, html)
 
 def sync_static_html_versions():
@@ -1758,7 +1768,7 @@ def sync_static_html_versions():
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     old = f.read()
-                new = versioned_static_html(re.sub(r'([?&]v=)[^"\'`\s<>)]*', rf'\g<1>{safe_version}', old))
+                new = versioned_static_html(old)
                 if new != old:
                     with open(path, "w", encoding="utf-8", newline="") as f:
                         f.write(new)

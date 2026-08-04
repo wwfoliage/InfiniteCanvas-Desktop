@@ -57,8 +57,13 @@ $env:INNO_SETUP_ISCC = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
 6. 上传安装包及 `SHA256SUMS.txt`，在发布说明中列出变更和已知限制。
 
 安装程序的 `AppId` 必须保持不变。用户运行更高版本的安装包时，程序文件会被覆盖，
-而 `%LOCALAPPDATA%\InfiniteCanvas` 中的 API 配置、画布、素材、历史记录和日志不会被
-删除。不要在安装脚本中添加针对该用户数据目录的卸载删除规则。
+而 `%LOCALAPPDATA%\InfiniteCanvas` 中的 `app_settings.json`、API 配置、画布、素材、
+历史记录和日志不会被删除。下载目录、分类整理、主题、缩放和语言等设置也会随升级
+保留。不要在安装脚本中添加针对该用户数据目录的卸载删除规则。
+
+应用只在用户点击“检查更新”后查询版本；发现新版本后，仍需用户再次点击“下载并安装”。
+发布时将安装包和 `SHA256SUMS.txt` 一起上传到 GitHub Release，用户手动下载安装包即可
+覆盖升级，无需先卸载旧版本。
 
 ## 运行结构
 

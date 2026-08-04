@@ -41,6 +41,7 @@ class SettingsCenterStructureTests(unittest.TestCase):
         settings = read("static/settings.html")
         self.assertIn('/static/api-settings.html?embedded=1', settings)
         self.assertIn('/static/comfyui-settings.html?embedded=1', settings)
+        self.assertIn('data-l10n="apiSettings"', settings)
         for page, stylesheet in (
             ("static/api-settings.html", "static/css/api-settings.css"),
             ("static/comfyui-settings.html", "static/css/comfyui-settings.css"),
@@ -68,6 +69,10 @@ class SettingsCenterStructureTests(unittest.TestCase):
         self.assertIn("grid-template-columns:222px 1px minmax(0,1fr)", css)
         self.assertIn("@media(max-width:760px)", css)
         self.assertNotIn("letter-spacing:-", css)
+
+    def test_main_settings_label_is_registered_for_both_languages(self):
+        common = read("static/js/i18n/common.js")
+        self.assertIn('"common.settings": { zh: "设置", en: "Settings" }', common)
 
 
 if __name__ == "__main__":

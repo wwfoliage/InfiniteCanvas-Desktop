@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from PyInstaller.building.datastruct import Tree
 from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 
@@ -12,7 +13,6 @@ datas = [
     (str(project_root / "static"), "static"),
     (str(project_root / "workflows"), "workflows"),
     (str(project_root / "CLI"), "CLI"),
-    (str(project_root / "tools"), "tools"),
     (str(project_root / "VERSION"), "."),
     (str(project_root / "LICENSE"), "."),
 ] + webview_datas
@@ -35,6 +35,11 @@ a = Analysis(
     runtime_hooks=[],
     excludes=["tkinter", "pytest"],
     noarchive=False,
+)
+a.datas += Tree(
+    str(project_root / "tools"),
+    prefix="tools",
+    excludes=["__pycache__", "*.pyc", "*.pyo"],
 )
 pyz = PYZ(a.pure)
 

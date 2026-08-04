@@ -118,6 +118,21 @@ class SettingsDownloadApiTests(unittest.TestCase):
         ):
             self.assertIn(expected, paths)
 
+    def test_static_html_versioning_preserves_embedded_query(self):
+        rendered = main.versioned_static_html(
+            '<iframe src="/static/api-settings.html?embedded=1"></iframe>'
+        )
+        self.assertIn('/static/api-settings.html?embedded=1&v=', rendered)
+        self.assertNotIn('?embedded=1?v=', rendered)
+        self.assertNotIn('?v=', rendered.split('embedded=1', 1)[0])
+
+    def test_static_html_versioning_replaces_existing_version_once(self):
+        rendered = main.versioned_static_html(
+            '<script src="/static/js/settings.js?v=old"></script>'
+        )
+        self.assertEqual(rendered.count('v='), 1)
+        self.assertNotIn('v=old', rendered)
+
 
 if __name__ == "__main__":
     unittest.main()
