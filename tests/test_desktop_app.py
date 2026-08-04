@@ -39,7 +39,12 @@ class DesktopAppTests(unittest.TestCase):
         webview = SimpleNamespace(create_window=MagicMock(), start=MagicMock())
         runtime = SimpleNamespace(stop=MagicMock())
 
-        result = run_window(webview, runtime, "http://127.0.0.1:32123/")
+        result = run_window(
+            webview,
+            runtime,
+            "http://127.0.0.1:32123/",
+            Path("C:/InfiniteCanvas/webview"),
+        )
 
         self.assertEqual(result, 0)
         webview.create_window.assert_called_once_with(
@@ -49,7 +54,12 @@ class DesktopAppTests(unittest.TestCase):
             height=900,
             min_size=(1024, 700),
         )
-        webview.start.assert_called_once_with(gui="edgechromium", debug=False, private_mode=False)
+        webview.start.assert_called_once_with(
+            gui="edgechromium",
+            debug=False,
+            private_mode=False,
+            storage_path="C:\\InfiniteCanvas\\webview",
+        )
         runtime.stop.assert_called_once()
 
     def test_window_stops_runtime_when_webview_fails(self):
@@ -76,6 +86,16 @@ class DesktopAppTests(unittest.TestCase):
                 self.assertTrue(Path(temp_dir).is_dir())
             finally:
                 close_logging()
+
+    @patch("desktop_app.os._exit")
+    @patch("desktop_app.close_logging")
+    def test_exit_process_closes_logs_before_forced_exit(self, close_logging, os_exit):
+        from desktop_app import exit_process
+
+        exit_process(7)
+
+        close_logging.assert_called_once()
+        os_exit.assert_called_once_with(7)
 
 
 if __name__ == "__main__":

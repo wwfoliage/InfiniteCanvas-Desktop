@@ -131,6 +131,10 @@ class AppPaths:
     def logs_dir(self) -> Path:
         return self.data_dir / "logs"
 
+    @property
+    def webview_data_dir(self) -> Path:
+        return self.data_dir / "webview"
+
 
 def _default_local_app_data() -> Path:
     configured = os.environ.get("LOCALAPPDATA", "").strip()
@@ -146,7 +150,10 @@ def resolve_app_paths(
 ) -> AppPaths:
     packaged = bool(getattr(sys, "frozen", False)) if frozen is None else frozen
     if resource_dir is None:
-        resource_root = Path(sys.executable).resolve().parent if packaged else Path(__file__).resolve().parent
+        if packaged:
+            resource_root = Path(getattr(sys, "_MEIPASS", Path(sys.executable).resolve().parent)).resolve()
+        else:
+            resource_root = Path(__file__).resolve().parent
     else:
         resource_root = Path(resource_dir).expanduser().resolve()
 
@@ -177,6 +184,7 @@ def ensure_user_directories(paths: AppPaths) -> None:
         paths.canvas_dir,
         paths.media_preview_dir,
         paths.logs_dir,
+        paths.webview_data_dir,
     )
     for directory in directories:
         directory.mkdir(parents=True, exist_ok=True)

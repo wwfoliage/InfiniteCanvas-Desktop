@@ -49,6 +49,18 @@ class AppPathsTests(unittest.TestCase):
 
             self.assertEqual(paths.data_dir, root / "explicit")
 
+    def test_frozen_mode_reads_resources_from_pyinstaller_bundle(self):
+        from app_paths import resolve_app_paths
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            bundle = Path(temp_dir) / "_internal"
+            with patch.object(sys, "frozen", True, create=True), patch.object(
+                sys, "_MEIPASS", str(bundle), create=True
+            ):
+                paths = resolve_app_paths(data_dir=Path(temp_dir) / "user")
+
+            self.assertEqual(paths.resource_dir, bundle.resolve())
+
     def test_ensure_user_directories_creates_runtime_tree(self):
         from app_paths import ensure_user_directories, resolve_app_paths
 

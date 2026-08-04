@@ -3,6 +3,7 @@ from __future__ import annotations
 import ctypes
 import logging
 import multiprocessing
+import os
 import socket
 import sys
 import threading
@@ -113,7 +114,12 @@ class UvicornRuntime:
         LOGGER.info("Desktop server stopped")
 
 
-def run_window(webview_module: Any, runtime: UvicornRuntime, url: str) -> int:
+def run_window(
+    webview_module: Any,
+    runtime: UvicornRuntime,
+    url: str,
+    storage_path: Path | str | None = None,
+) -> int:
     try:
         webview_module.create_window(
             "InfiniteCanvas",
@@ -122,7 +128,12 @@ def run_window(webview_module: Any, runtime: UvicornRuntime, url: str) -> int:
             height=900,
             min_size=(1024, 700),
         )
-        webview_module.start(gui="edgechromium", debug=False, private_mode=False)
+        webview_module.start(
+            gui="edgechromium",
+            debug=False,
+            private_mode=False,
+            storage_path=str(storage_path) if storage_path else None,
+        )
         return 0
     finally:
         runtime.stop()
@@ -138,7 +149,7 @@ def run_desktop() -> int:
     runtime = UvicornRuntime(app)
     url = runtime.start()
     try:
-        return run_window(webview, runtime, url)
+        return run_window(webview, runtime, url, paths.webview_data_dir)
     finally:
         close_logging()
 
@@ -167,6 +178,11 @@ def main() -> int:
         return 1
 
 
+def exit_process(exit_code: int) -> None:
+    close_logging()
+    os._exit(exit_code)
+
+
 if __name__ == "__main__":
     multiprocessing.freeze_support()
-    raise SystemExit(main())
+    exit_process(main())

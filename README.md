@@ -1,4 +1,41 @@
-# Infinite-Canvas
+# InfiniteCanvas Desktop
+
+InfiniteCanvas 的 Windows 桌面发行版。程序使用 PyWebView + WebView2 打开独立桌面窗口，
+不会启动外部浏览器，也不会显示 CMD 控制台。
+
+## 下载与安装
+
+1. 在 [Releases](https://github.com/wwfoliage/InfiniteCanvas-Desktop/releases) 下载最新的
+   `InfiniteCanvas-Setup-<版本>.exe`。
+2. 运行安装程序。Windows 10/11 64 位系统需要 Microsoft Edge WebView2 Runtime；
+   常规 Windows 10/11 通常已经自带。
+3. 从开始菜单或桌面快捷方式启动 InfiniteCanvas。
+
+安装包不会包含开发电脑上的 API 密钥、画布、素材、历史记录或日志。第一次启动后，
+API 配置和所有用户数据写入 `%LOCALAPPDATA%\InfiniteCanvas`。
+
+## 手动更新
+
+下载更高版本的安装包并直接运行覆盖安装，不需要先卸载旧版本。安装程序使用固定的
+应用标识，只替换程序文件，不删除 `%LOCALAPPDATA%\InfiniteCanvas`，因此现有配置、
+画布和素材会保留。为防止意外，重要项目仍建议定期自行备份。
+
+## 开发与构建
+
+桌面入口是 `desktop_app.py`，本地服务只监听动态的 `127.0.0.1` 端口。PyInstaller
+以 `onedir`、`console=False` 模式构建应用，Inno Setup 生成按用户安装的安装包。
+完整构建和发版步骤见 [Windows 桌面版构建文档](docs/windows-desktop-build.md)。
+
+## 来源与许可
+
+本项目基于 [hero8152/Infinite-Canvas](https://github.com/hero8152/Infinite-Canvas)
+进行桌面封装和适配，原作者及来源保留于此。派生版本继续公开源代码并遵守仓库中的
+`LICENSE`：禁止未经授权的商业封装；商业使用需取得原作者授权。
+
+---
+
+## 上游项目介绍
+
 Supports comfyui/API calls/modelscope calls
 
 配套的chrome采集插件已经上线：https://chromewebstore.google.com/detail/infinite-canvas-%E5%9B%BE%E5%83%8F%E8%A7%86%E9%A2%91%E6%96%87%E5%AD%97%E6%8A%93%E5%8F%96%E5%B7%A5/ajfhnbklbmpfaaookhfakohabnpmlcic?authuser=0&hl=en
