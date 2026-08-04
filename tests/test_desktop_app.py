@@ -76,6 +76,91 @@ class DesktopAppTests(unittest.TestCase):
 
         runtime.stop.assert_called_once()
 
+    def test_window_enables_download_fallback_and_exposes_desktop_api(self):
+        from desktop_app import run_window
+
+        window = MagicMock()
+        webview = SimpleNamespace(
+            settings={},
+            create_window=MagicMock(return_value=window),
+            start=MagicMock(),
+        )
+        runtime = SimpleNamespace(stop=MagicMock())
+        desktop_api = MagicMock()
+
+        run_window(
+            webview,
+            runtime,
+            "http://127.0.0.1:32123/",
+            Path("C:/InfiniteCanvas/webview"),
+            desktop_api,
+        )
+
+        self.assertTrue(webview.settings["ALLOW_DOWNLOADS"])
+        self.assertIs(webview.create_window.call_args.kwargs["js_api"], desktop_api)
+        desktop_api.set_window.assert_called_once_with(window)
+
+    def test_desktop_api_selects_and_persists_download_directory(self):
+        from app_paths import resolve_app_paths
+        from app_settings import AppSettingsStore
+        from desktop_app import DesktopApi
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            chosen = root / "chosen"
+            chosen.mkdir()
+            paths = resolve_app_paths(resource_dir=root / "bundle", data_dir=root / "data", frozen=True)
+            store = AppSettingsStore(paths.app_settings_file)
+            window = MagicMock()
+            window.create_file_dialog.return_value = (str(chosen),)
+            api = DesktopApi(paths, store, folder_dialog_type="folder", opener=MagicMock())
+            api.set_window(window)
+
+            result = api.choose_download_directory()
+
+            self.assertTrue(result["ok"])
+            self.assertEqual(store.load()["downloads"]["directory"], str(chosen.resolve()))
+            window.create_file_dialog.assert_called_once()
+
+    def test_desktop_api_handles_cancel_and_rejects_arbitrary_open_path(self):
+        from app_paths import resolve_app_paths
+        from app_settings import AppSettingsStore
+        from desktop_app import DesktopApi
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            paths = resolve_app_paths(resource_dir=root / "bundle", data_dir=root / "data", frozen=True)
+            store = AppSettingsStore(paths.app_settings_file)
+            window = MagicMock()
+            window.create_file_dialog.return_value = None
+            opener = MagicMock()
+            api = DesktopApi(paths, store, folder_dialog_type="folder", opener=opener)
+            api.set_window(window)
+
+            self.assertEqual(api.choose_download_directory(), {"ok": False, "cancelled": True})
+            self.assertEqual(
+                api.open_directory("C:/Windows"),
+                {"ok": False, "error_code": "directory_not_allowed"},
+            )
+            opener.assert_not_called()
+
+    def test_desktop_api_opens_only_registered_directory_kind(self):
+        from app_paths import resolve_app_paths
+        from app_settings import AppSettingsStore
+        from desktop_app import DesktopApi
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            paths = resolve_app_paths(resource_dir=root / "bundle", data_dir=root / "data", frozen=True)
+            store = AppSettingsStore(paths.app_settings_file)
+            opener = MagicMock()
+            api = DesktopApi(paths, store, folder_dialog_type="folder", opener=opener)
+
+            result = api.open_directory("logs")
+
+            self.assertTrue(result["ok"])
+            opener.assert_called_once_with(str(paths.logs_dir.resolve()))
+
     def test_logging_writes_to_user_log_directory(self):
         from desktop_app import close_logging, configure_logging
 

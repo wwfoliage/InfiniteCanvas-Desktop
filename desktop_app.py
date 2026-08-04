@@ -16,6 +16,7 @@ from typing import Any
 import uvicorn
 
 from app_paths import ensure_user_directories, resolve_app_paths
+from app_settings import AppSettingsStore, default_download_directory, settings_for_client
 
 
 LOGGER = logging.getLogger("infinitecanvas.desktop")
@@ -114,20 +115,97 @@ class UvicornRuntime:
         LOGGER.info("Desktop server stopped")
 
 
+class DesktopApi:
+    ALLOWED_DIRECTORY_KINDS = {"downloads", "data", "cache", "logs"}
+
+    def __init__(
+        self,
+        paths: Any,
+        settings_store: AppSettingsStore,
+        folder_dialog_type: Any = None,
+        opener: Any = None,
+    ):
+        self.paths = paths
+        self.settings_store = settings_store
+        self.folder_dialog_type = folder_dialog_type
+        self.opener = opener or getattr(os, "startfile", None)
+        self.window: Any = None
+
+    def set_window(self, window: Any) -> None:
+        self.window = window
+
+    def _directory_for_kind(self, kind: str) -> Path | None:
+        if kind not in self.ALLOWED_DIRECTORY_KINDS:
+            return None
+        if kind == "downloads":
+            configured = str(self.settings_store.load()["downloads"].get("directory") or "")
+            return Path(configured) if configured else default_download_directory()
+        if kind == "data":
+            return self.paths.data_dir
+        if kind == "cache":
+            return self.paths.media_preview_dir
+        return self.paths.logs_dir
+
+    def choose_download_directory(self) -> dict[str, Any]:
+        if self.window is None or self.folder_dialog_type is None:
+            return {"ok": False, "error_code": "desktop_dialog_unavailable"}
+        current = self._directory_for_kind("downloads")
+        selected = self.window.create_file_dialog(
+            self.folder_dialog_type,
+            directory=str(current),
+            allow_multiple=False,
+        )
+        if not selected:
+            return {"ok": False, "cancelled": True}
+        raw = selected[0] if isinstance(selected, (list, tuple)) else selected
+        directory = Path(str(raw)).expanduser()
+        if not directory.is_absolute() or not directory.is_dir():
+            return {"ok": False, "error_code": "invalid_directory"}
+        settings = self.settings_store.update(
+            {"downloads": {"directory": str(directory.resolve())}}
+        )
+        return {
+            "ok": True,
+            "directory": str(directory.resolve()),
+            "settings": settings_for_client(settings),
+        }
+
+    def open_directory(self, kind: str) -> dict[str, Any]:
+        directory = self._directory_for_kind(str(kind or ""))
+        if directory is None:
+            return {"ok": False, "error_code": "directory_not_allowed"}
+        try:
+            directory = directory.expanduser().resolve()
+            directory.mkdir(parents=True, exist_ok=True)
+            if not self.opener:
+                return {"ok": False, "error_code": "directory_open_unavailable"}
+            self.opener(str(directory))
+            return {"ok": True, "directory": str(directory)}
+        except OSError:
+            return {"ok": False, "error_code": "directory_open_failed"}
+
+
 def run_window(
     webview_module: Any,
     runtime: UvicornRuntime,
     url: str,
     storage_path: Path | str | None = None,
+    desktop_api: DesktopApi | None = None,
 ) -> int:
     try:
-        webview_module.create_window(
-            "InfiniteCanvas",
-            url,
-            width=1440,
-            height=900,
-            min_size=(1024, 700),
-        )
+        settings = getattr(webview_module, "settings", None)
+        if settings is not None:
+            settings["ALLOW_DOWNLOADS"] = True
+        window_options = {
+            "width": 1440,
+            "height": 900,
+            "min_size": (1024, 700),
+        }
+        if desktop_api is not None:
+            window_options["js_api"] = desktop_api
+        window = webview_module.create_window("InfiniteCanvas", url, **window_options)
+        if desktop_api is not None:
+            desktop_api.set_window(window)
         webview_module.start(
             gui="edgechromium",
             debug=False,
@@ -141,15 +219,20 @@ def run_window(
 
 def run_desktop() -> int:
     import webview
-    from main import app
+    from main import APP_SETTINGS, app
 
     paths = resolve_app_paths()
     ensure_user_directories(paths)
     configure_logging(paths.logs_dir)
     runtime = UvicornRuntime(app)
     url = runtime.start()
+    desktop_api = DesktopApi(
+        paths,
+        APP_SETTINGS,
+        folder_dialog_type=webview.FOLDER_DIALOG,
+    )
     try:
-        return run_window(webview, runtime, url, paths.webview_data_dir)
+        return run_window(webview, runtime, url, paths.webview_data_dir, desktop_api)
     finally:
         close_logging()
 
