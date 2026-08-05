@@ -56,9 +56,16 @@ class SettingsBehaviorContractTests(unittest.TestCase):
         index = read("static/index.html")
         settings = read("static/js/settings.js")
         self.assertIn("event.origin !== location.origin", settings)
+        self.assertIn("fetch('/api/desktop-action'", settings)
+        self.assertIn("nativeFailureMessage", settings)
         self.assertIn("settings-native-request", index)
         self.assertIn("open_directory(kind)", index)
         self.assertNotIn("open_directory(path)", index)
+
+    def test_download_folder_open_uses_desktop_http_bridge(self):
+        source = read("static/js/downloads.js")
+        self.assertIn("fetch('/api/desktop-action'", source)
+        self.assertIn("requestNative('open-directory', kind)", source)
 
     def test_updates_use_full_installer_from_project_release(self):
         main = read("main.py")

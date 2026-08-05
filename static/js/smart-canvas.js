@@ -77,21 +77,51 @@ let selectedId = '';
 let selectedIds = [];
 let selectedImage = {nodeId:'', index:-1};
 let dragState = null;
-const SMART_SNAP_KEY = 'smart_canvas_grid_snap';
-const SMART_GRID_SIZE = 24;
+const SMART_SNAP_KEY = 'smart_canvas_node_snap';
 let smartSnapEnabled = false;
-try { smartSnapEnabled = localStorage.getItem(SMART_SNAP_KEY) === '1'; } catch(e) {}
+try {
+    const stored = localStorage.getItem(SMART_SNAP_KEY);
+    smartSnapEnabled = stored == null ? localStorage.getItem('smart_canvas_grid_snap') === '1' : stored === '1';
+} catch(e) {}
 
-function snapSmartCoordinate(value){
-    const numeric = Number(value) || 0;
-    return smartSnapEnabled ? Math.round(numeric / SMART_GRID_SIZE) * SMART_GRID_SIZE : numeric;
+let smartAlignmentGuideLayer = null;
+
+function clearSmartAlignmentGuides(){
+    smartAlignmentGuideLayer?.remove();
+    smartAlignmentGuideLayer = null;
+}
+
+function renderSmartAlignmentGuides(guides){
+    clearSmartAlignmentGuides();
+    if(!smartSnapEnabled || !guides?.length) return;
+    const layer = document.createElement('div');
+    layer.className = 'smart-alignment-guides';
+    const lineSize = 1.5 / Math.max(0.01, viewport.scale);
+    guides.forEach(guide => {
+        const line = document.createElement('div');
+        line.className = `smart-alignment-guide ${guide.axis === 'x' ? 'vertical' : 'horizontal'}`;
+        if(guide.axis === 'x'){
+            line.style.left = `${guide.position}px`;
+            line.style.top = `${guide.start}px`;
+            line.style.width = `${lineSize}px`;
+            line.style.height = `${Math.max(0, guide.end - guide.start)}px`;
+        } else {
+            line.style.left = `${guide.start}px`;
+            line.style.top = `${guide.position}px`;
+            line.style.width = `${Math.max(0, guide.end - guide.start)}px`;
+            line.style.height = `${lineSize}px`;
+        }
+        layer.appendChild(line);
+    });
+    world.appendChild(layer);
+    smartAlignmentGuideLayer = layer;
 }
 
 function updateSmartSnapToggle(){
     if(!smartSnapToggle) return;
     smartSnapToggle.classList.toggle('active', smartSnapEnabled);
     smartSnapToggle.setAttribute('aria-pressed', smartSnapEnabled ? 'true' : 'false');
-    const label = smartSnapEnabled ? '关闭网格吸附' : '开启网格吸附';
+    const label = smartSnapEnabled ? '关闭节点对齐' : '开启节点对齐';
     smartSnapToggle.title = label;
     smartSnapToggle.setAttribute('aria-label', label);
 }
@@ -6103,7 +6133,7 @@ function inheritNodeMetaFromImage(node){
 function createNode(x, y, images=[], options={}){
     if(!options.skipUndo) pushUndo();
     const nodeImages = (images || []).map(img => ({...img}));
-    const node = {id:uid('smart'), type:'smart-image', x:snapSmartCoordinate(x), y:snapSmartCoordinate(y), title:nodeImages.length > 1 ? 'Group' : nodeImages.length ? 'Image' : tr('smart.createImportNode'), images:nodeImages, created_at:Date.now()};
+    const node = {id:uid('smart'), type:'smart-image', x, y, title:nodeImages.length > 1 ? 'Group' : nodeImages.length ? 'Image' : tr('smart.createImportNode'), images:nodeImages, created_at:Date.now()};
     node.scale = nodeImages.length > 1 ? MEDIA_GROUP_DEFAULT_SCALE : mediaNodeDefaultScale(node);
     inheritNodeMetaFromImage(node);
     nodes.push(node);
@@ -6118,8 +6148,8 @@ function createPromptNode(x, y, options={}){
     const node = {
         id:uid('prompt'),
         type:'smart-prompt',
-        x:snapSmartCoordinate(x),
-        y:snapSmartCoordinate(y),
+        x,
+        y,
         w:316,
         h:240,
         title:'Prompt',
@@ -6142,7 +6172,7 @@ function createPromptNode(x, y, options={}){
 }
 function createLoopNode(x, y, options={}){
     if(!options.skipUndo) pushUndo();
-    const node = {id:uid('loop'), type:'smart-loop', x:snapSmartCoordinate(x), y:snapSmartCoordinate(y), w:340, h:168, title:'Loop', count:1, mode:'serial', showPrompt:false, imageInput:false, loopStart:1, imageBatchSize:1, variablePrompt:'', created_at:Date.now()};
+    const node = {id:uid('loop'), type:'smart-loop', x, y, w:340, h:168, title:'Loop', count:1, mode:'serial', showPrompt:false, imageInput:false, loopStart:1, imageBatchSize:1, variablePrompt:'', created_at:Date.now()};
     nodes.push(node);
     if(options.select !== false) selectedId = node.id;
     render();
@@ -6154,8 +6184,8 @@ function createSmartVideoEnhanceNode(x, y, options={}){
     const node = {
         id:uid('enhance'),
         type:'smart-video-enhance',
-        x:snapSmartCoordinate(x),
-        y:snapSmartCoordinate(y),
+        x,
+        y,
         w:348,
         h:404,
         title:'MediaKit 画质增强',
@@ -6177,7 +6207,7 @@ function createSmartVideoEnhanceNode(x, y, options={}){
 }
 function createSmartGroupNode(x, y, options={}){
     if(!options.skipUndo) pushUndo();
-    const node = {id:uid('group'), type:'smart-group', x:snapSmartCoordinate(x), y:snapSmartCoordinate(y), w:SMART_GROUP_DEFAULT_WIDTH, h:SMART_GROUP_DEFAULT_HEIGHT, title:'智能分组', items:[], created_at:Date.now()};
+    const node = {id:uid('group'), type:'smart-group', x, y, w:SMART_GROUP_DEFAULT_WIDTH, h:SMART_GROUP_DEFAULT_HEIGHT, title:'智能分组', items:[], created_at:Date.now()};
     nodes.push(node);
     if(options.select !== false) selectedId = node.id;
     render();
@@ -6819,6 +6849,46 @@ function captureMediaPlaybackStates(){
         if(key) states.set(key, captureMediaPlaybackState(media));
     });
     return states;
+}
+
+function alignSmartDrag(rawDx, rawDy, state){
+    if(!smartSnapEnabled || !window.NodeAlignment) return {dx:rawDx, dy:rawDy, guides:[]};
+    const group = state.group || [{id:state.id, ox:state.ox, oy:state.oy}];
+    const draggedIds = new Set(group.map(item => item.id));
+    const movingRects = group.map(item => {
+        const node = nodes.find(candidate => candidate.id === item.id);
+        if(!node) return null;
+        const rect = nodeRect(node);
+        return {
+            id:node.id,
+            x:item.ox + rawDx,
+            y:item.oy + rawDy,
+            width:rect.width,
+            height:rect.height
+        };
+    }).filter(Boolean);
+    if(!movingRects.length) return {dx:rawDx, dy:rawDy, guides:[]};
+    const bounds = movingRects.reduce((result, rect) => ({
+        x:Math.min(result.x, rect.x),
+        y:Math.min(result.y, rect.y),
+        right:Math.max(result.right, rect.x + rect.width),
+        bottom:Math.max(result.bottom, rect.y + rect.height)
+    }), {x:Infinity, y:Infinity, right:-Infinity, bottom:-Infinity});
+    const draggedRect = {
+        x:bounds.x,
+        y:bounds.y,
+        width:bounds.right - bounds.x,
+        height:bounds.bottom - bounds.y
+    };
+    const targets = nodes
+        .filter(node => !draggedIds.has(node.id))
+        .map(node => ({...nodeRect(node), id:node.id}));
+    const aligned = NodeAlignment.findAlignment(draggedRect, targets, 6 / viewport.scale);
+    return {
+        dx:rawDx + aligned.deltaX,
+        dy:rawDy + aligned.deltaY,
+        guides:aligned.guides
+    };
 }
 function restoreMediaPlaybackStates(states){
     if(!states?.size) return;
@@ -17184,14 +17254,16 @@ window.onmousemove = e => {
     if(!node) return;
     const moveDx = (e.clientX - dragState.startX) / viewport.scale;
     const moveDy = (e.clientY - dragState.startY) / viewport.scale;
-    const snappedDx = snapSmartCoordinate(dragState.ox + moveDx) - dragState.ox;
-    const snappedDy = snapSmartCoordinate(dragState.oy + moveDy) - dragState.oy;
+    const alignedDrag = alignSmartDrag(moveDx, moveDy, dragState);
+    const snappedDx = alignedDrag.dx;
+    const snappedDy = alignedDrag.dy;
     (dragState.group || [{id:dragState.id, ox:dragState.ox, oy:dragState.oy}]).forEach(item => {
         const n = nodes.find(x => x.id === item.id);
         if(!n) return;
         n.x = item.ox + snappedDx;
         n.y = item.oy + snappedDy;
     });
+    renderSmartAlignmentGuides(alignedDrag.guides);
     if(assetLibraryOpen){
         const hit = document.elementFromPoint(e.clientX, e.clientY);
         if(hit && assetPanel?.contains(hit)){
@@ -17215,6 +17287,7 @@ window.onmousemove = e => {
     if(target) setDropHighlight(target.id);
 };
 window.onmouseup = e => {
+    clearSmartAlignmentGuides();
     document.body.classList.remove('smart-node-drag');
     document.body.classList.remove('smart-node-resize');
     document.body.classList.remove('smart-canvas-interacting');
@@ -17599,8 +17672,9 @@ if(smartSnapToggle) smartSnapToggle.onclick = event => {
     event.stopPropagation();
     smartSnapEnabled = !smartSnapEnabled;
     try { localStorage.setItem(SMART_SNAP_KEY, smartSnapEnabled ? '1' : '0'); } catch(e) {}
+    if(!smartSnapEnabled) clearSmartAlignmentGuides();
     updateSmartSnapToggle();
-    toast(smartSnapEnabled ? '已开启网格吸附' : '已关闭网格吸附');
+    toast(smartSnapEnabled ? '已开启节点对齐' : '已关闭节点对齐');
 };
 if(smartWorkflowToggle) smartWorkflowToggle.onclick = event => {
     event.preventDefault();

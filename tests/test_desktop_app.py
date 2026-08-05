@@ -9,6 +9,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 
 class DesktopAppTests(unittest.TestCase):
+    def tearDown(self):
+        from desktop_bridge import unregister_desktop_api
+
+        unregister_desktop_api()
+
     def test_reserved_port_is_valid(self):
         from desktop_app import reserve_loopback_port
 
@@ -205,6 +210,33 @@ class DesktopAppTests(unittest.TestCase):
             result = api.install_update("https://example.com/update.exe", "2026.09.01")
             self.assertFalse(result["ok"])
             self.assertEqual(result["error_code"], "untrusted_installer_url")
+
+    def test_desktop_bridge_dispatches_only_allow_listed_actions(self):
+        from desktop_bridge import dispatch_desktop_action, register_desktop_api
+
+        api = SimpleNamespace(
+            choose_download_directory=MagicMock(return_value={"ok": True, "directory": "D:/Downloads"}),
+            choose_directory=MagicMock(return_value={"ok": True}),
+            open_directory=MagicMock(return_value={"ok": True}),
+            install_update=MagicMock(return_value={"ok": True}),
+        )
+        register_desktop_api(api)
+
+        result = dispatch_desktop_action("open-directory", "downloads", {})
+        rejected = dispatch_desktop_action("open-path", "C:/Windows", {})
+
+        self.assertTrue(result["ok"])
+        api.open_directory.assert_called_once_with("downloads")
+        self.assertEqual(rejected["error_code"], "desktop_action_unknown")
+
+    def test_desktop_bridge_reports_unavailable_without_registered_app(self):
+        from desktop_bridge import dispatch_desktop_action, unregister_desktop_api
+
+        unregister_desktop_api()
+        result = dispatch_desktop_action("open-directory", "downloads", {})
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["error_code"], "desktop_api_unavailable")
 
     def test_logging_writes_to_user_log_directory(self):
         from desktop_app import close_logging, configure_logging

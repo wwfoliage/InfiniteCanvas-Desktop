@@ -135,11 +135,33 @@
         if(action === 'install-update') return api.install_update(payload.url || '', payload.version || '');
         return {ok:false,error_code:'desktop_action_unknown'};
     }
+    async function httpNativeRequest(action, kind='', payload={}){
+        try {
+            const response = await fetch('/api/desktop-action', {
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({action,kind,payload})
+            });
+            const result = await response.json().catch(() => ({}));
+            if(!response.ok) return {ok:false,error_code:'desktop_http_failed',message:result?.detail || result?.message || `HTTP ${response.status}`};
+            return result;
+        } catch(error) {
+            return null;
+        }
+    }
+    function nativeFailureMessage(result, fallback){
+        const detail = String(result?.message || result?.error_code || '').trim();
+        return detail ? `${fallback}: ${detail}` : fallback;
+    }
     async function requestNative(action, kind='', payload={}){
+        const bridged = await httpNativeRequest(action, kind, payload);
+        if(bridged && bridged.error_code !== 'desktop_api_unavailable') return bridged;
         try {
             const direct = await directNativeRequest(action, kind, payload);
             if(direct) return direct;
-        } catch(_) {}
+        } catch(error) {
+            console.error('Direct desktop bridge failed', error);
+        }
         const id = `settings-native-${Date.now()}-${++nativeSequence}`;
         return new Promise(resolve => {
             const timer = setTimeout(() => { nativePending.delete(id); resolve({ok:false,error_code:'desktop_api_timeout'}); }, 8000);
@@ -150,18 +172,18 @@
     async function chooseDownloadDirectory(){
         const result = await requestNative('choose-download-directory');
         if(result?.cancelled) return;
-        if(!result?.ok){ showStatus(t('chooseFailed'), true); return; }
+        if(!result?.ok){ showStatus(nativeFailureMessage(result, t('chooseFailed')), true); return; }
         settings = result.settings || await requestJson('/api/app-settings');
         renderSettings();
     }
     async function openDirectory(kind){
         const result = await requestNative('open-directory', kind);
-        if(!result?.ok) showStatus(t('openFailed'), true);
+        if(!result?.ok) showStatus(nativeFailureMessage(result, t('openFailed')), true);
     }
     async function chooseDirectory(kind){
         const result = await requestNative('choose-directory', kind);
         if(result?.cancelled) return;
-        if(!result?.ok){ showStatus(t('chooseFailed'), true); return; }
+        if(!result?.ok){ showStatus(nativeFailureMessage(result, t('chooseFailed')), true); return; }
         showStatus(result.restart_required ? t('restartRequired') : t('saved'));
         await refreshStorage();
     }

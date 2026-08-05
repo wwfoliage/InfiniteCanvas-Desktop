@@ -54,6 +54,7 @@ from download_manager import (
     iter_file_chunks,
     storage_report,
 )
+from desktop_bridge import dispatch_desktop_action
 
 QUIET_ACCESS_PATHS = {
     "/api/queue_status",
@@ -90,6 +91,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.post("/api/desktop-action")
+async def desktop_action(payload: Dict[str, Any]):
+    data = payload if isinstance(payload, dict) else {}
+    return await asyncio.to_thread(
+        dispatch_desktop_action,
+        str(data.get("action") or ""),
+        str(data.get("kind") or ""),
+        data.get("payload") if isinstance(data.get("payload"), dict) else {},
+    )
 
 # --- WebSocket 状态管理器 ---
 class ConnectionManager:

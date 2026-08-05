@@ -138,7 +138,18 @@
         }
     }
 
-    function requestNative(action, kind=''){
+    async function requestNative(action, kind=''){
+        try {
+            const response = await fetch('/api/desktop-action', {
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({action,kind,payload:{}})
+            });
+            const result = await response.json().catch(() => ({}));
+            if(response.ok && result?.error_code !== 'desktop_api_unavailable') return result;
+        } catch(error) {
+            console.error('Desktop HTTP bridge failed', error);
+        }
         if(window.pywebview?.api){
             if(action === 'open-directory') return window.pywebview.api.open_directory(kind);
         }

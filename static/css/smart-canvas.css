@@ -57,6 +57,9 @@ html[data-studio-scale="off"].studio-scale-managed .preview-modal {
 .smart-log-toggle.active,.smart-shortcut-toggle.active,.smart-snap-toggle.active,.smart-workflow-toggle.active { background:var(--strong); color:var(--strong-text); border-color:var(--strong); box-shadow:0 16px 38px var(--shadow); }
 .smart-log-toggle i,.smart-log-toggle svg,.smart-shortcut-toggle i,.smart-shortcut-toggle svg,.smart-snap-toggle i,.smart-snap-toggle svg,.smart-workflow-toggle i,.smart-workflow-toggle svg { width:16px; height:16px; }
 .image-node { position:absolute; width:260px; min-height:178px; border-radius:16px; background:transparent; border:0; box-shadow:none; overflow:visible; user-select:none; cursor:move; }
+.smart-alignment-guides { position:absolute; inset:0; pointer-events:none; z-index:120; overflow:visible; }
+.smart-alignment-guide { position:absolute; pointer-events:none; background:#2563eb; box-shadow:0 0 0 .5px rgba(255,255,255,.72); }
+.theme-dark .smart-alignment-guide { background:#60a5fa; box-shadow:0 0 0 .5px rgba(15,23,42,.82); }
 body.smart-node-drag * { user-select:none !important; }
 body.smart-node-drag .image-node textarea,
 body.smart-node-drag .image-node input,

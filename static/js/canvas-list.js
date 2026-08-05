@@ -76,21 +76,72 @@ let clipboardCanvasId = null;   // 剪切的画布（切到别的项目后粘贴
 // board viewport (mirrors smart-canvas math)
 const viewport = { x: 0, y: 0, scale: 1 };
 const MIN_SCALE = 0.3, MAX_SCALE = 2;
-const CANVAS_LIST_SNAP_KEY = 'canvas_list_grid_snap';
-const BOARD_GRID_SIZE = 24;
+const CANVAS_LIST_SNAP_KEY = 'canvas_list_node_snap';
 let boardSnapEnabled = false;
-try { boardSnapEnabled = localStorage.getItem(CANVAS_LIST_SNAP_KEY) === '1'; } catch(e) {}
+try {
+    const stored = localStorage.getItem(CANVAS_LIST_SNAP_KEY);
+    boardSnapEnabled = stored == null ? localStorage.getItem('canvas_list_grid_snap') === '1' : stored === '1';
+} catch(e) {}
 
-function snapBoardCoordinate(value){
-    const numeric = Number(value) || 0;
-    return boardSnapEnabled ? Math.round(numeric / BOARD_GRID_SIZE) * BOARD_GRID_SIZE : numeric;
+let boardAlignmentGuideLayer = null;
+
+function clearBoardAlignmentGuides(){
+    boardAlignmentGuideLayer?.remove();
+    boardAlignmentGuideLayer = null;
+}
+
+function renderBoardAlignmentGuides(guides){
+    clearBoardAlignmentGuides();
+    if(!boardSnapEnabled || !guides?.length) return;
+    const layer = document.createElement('div');
+    layer.className = 'ws-alignment-guides';
+    const lineSize = 1.5 / Math.max(0.01, viewport.scale);
+    guides.forEach(guide => {
+        const line = document.createElement('div');
+        line.className = `ws-alignment-guide ${guide.axis === 'x' ? 'vertical' : 'horizontal'}`;
+        if(guide.axis === 'x'){
+            line.style.left = `${guide.position}px`;
+            line.style.top = `${guide.start}px`;
+            line.style.width = `${lineSize}px`;
+            line.style.height = `${Math.max(0, guide.end - guide.start)}px`;
+        } else {
+            line.style.left = `${guide.start}px`;
+            line.style.top = `${guide.position}px`;
+            line.style.width = `${Math.max(0, guide.end - guide.start)}px`;
+            line.style.height = `${lineSize}px`;
+        }
+        layer.appendChild(line);
+    });
+    boardWorld.appendChild(layer);
+    boardAlignmentGuideLayer = layer;
+}
+
+function boardCardRect(id, overrideX, overrideY){
+    const el = boardWorld.querySelector(`.ws-card[data-canvas-id="${CSS.escape(String(id))}"]`);
+    const canvas = canvases.find(item => String(item.id) === String(id));
+    return {
+        id:String(id),
+        x:Number.isFinite(overrideX) ? overrideX : Number(canvas?.board_x || 0),
+        y:Number.isFinite(overrideY) ? overrideY : Number(canvas?.board_y || 0),
+        width:el?.offsetWidth || 248,
+        height:el?.offsetHeight || 150
+    };
+}
+
+function alignBoardDrag(rawX, rawY, draggedId){
+    if(!boardSnapEnabled || !window.NodeAlignment) return {x:rawX, y:rawY, guides:[]};
+    const dragged = boardCardRect(draggedId, rawX, rawY);
+    const targets = canvasesInProject(currentProjectId)
+        .filter(item => String(item.id) !== String(draggedId))
+        .map(item => boardCardRect(item.id));
+    return NodeAlignment.findAlignment(dragged, targets, 6 / viewport.scale);
 }
 
 function updateBoardSnapToggle(){
     if(!boardSnapToggle) return;
     boardSnapToggle.classList.toggle('active', boardSnapEnabled);
     boardSnapToggle.setAttribute('aria-pressed', boardSnapEnabled ? 'true' : 'false');
-    const label = boardSnapEnabled ? L('关闭网格吸附','Disable grid snap') : L('开启网格吸附','Enable grid snap');
+    const label = boardSnapEnabled ? L('关闭节点对齐','Disable node alignment') : L('开启节点对齐','Enable node alignment');
     boardSnapToggle.title = label;
     boardSnapToggle.setAttribute('aria-label', label);
 }
@@ -423,6 +474,7 @@ function renderBoard(){
     updateBoardHeader();
     const items = canvasesInProject(currentProjectId);
     autoLayoutNulls(items);
+    clearBoardAlignmentGuides();
     boardWorld.innerHTML = '';
     items.forEach(c => boardWorld.appendChild(buildCard(c)));
     boardEmptyHint.classList.toggle('hidden', items.length > 0);
@@ -487,16 +539,19 @@ function attachCardDrag(card, c){
                 moved = true; card.classList.add('dragging');
             }
             if(moved){
-                c.board_x = snapBoardCoordinate(origX + dx);
-                c.board_y = snapBoardCoordinate(origY + dy);
+                const aligned = alignBoardDrag(origX + dx, origY + dy, c.id);
+                c.board_x = aligned.x;
+                c.board_y = aligned.y;
                 card.style.left = c.board_x + 'px';
                 card.style.top = c.board_y + 'px';
+                renderBoardAlignmentGuides(aligned.guides);
             }
         };
         const onUp = () => {
             document.removeEventListener('mousemove', onMove);
             document.removeEventListener('mouseup', onUp);
             card.classList.remove('dragging');
+            clearBoardAlignmentGuides();
             if(moved){
                 persistMeta(c.id, { board_x: Math.round(c.board_x), board_y: Math.round(c.board_y) });
             } else {
@@ -589,8 +644,8 @@ async function createCanvasOnBoard(title, kind, worldPt){
                 icon: isSmart ? 'sparkles' : '🧩',
                 kind: isSmart ? 'smart' : 'classic',
                 project: currentProjectId,
-                board_x: Math.round(snapBoardCoordinate(worldPt.x)),
-                board_y: Math.round(snapBoardCoordinate(worldPt.y))
+                board_x: Math.round(worldPt.x),
+                board_y: Math.round(worldPt.y)
             })
         });
         if(!res.ok) throw new Error('create canvas failed');
@@ -598,8 +653,8 @@ async function createCanvasOnBoard(title, kind, worldPt){
         const nc = data.canvas;
         if(nc){
             if(nc.project == null) nc.project = currentProjectId;
-            if(nc.board_x == null) nc.board_x = Math.round(snapBoardCoordinate(worldPt.x));
-            if(nc.board_y == null) nc.board_y = Math.round(snapBoardCoordinate(worldPt.y));
+            if(nc.board_x == null) nc.board_x = Math.round(worldPt.x);
+            if(nc.board_y == null) nc.board_y = Math.round(worldPt.y);
             canvases.push(nc);
             renderBoard();
             renderProjects();
@@ -1049,8 +1104,9 @@ boardSnapToggle?.addEventListener('click', event => {
     event.stopPropagation();
     boardSnapEnabled = !boardSnapEnabled;
     try { localStorage.setItem(CANVAS_LIST_SNAP_KEY, boardSnapEnabled ? '1' : '0'); } catch(e) {}
+    if(!boardSnapEnabled) clearBoardAlignmentGuides();
     updateBoardSnapToggle();
-    setStatus(boardSnapEnabled ? L('已开启网格吸附','Grid snap enabled') : L('已关闭网格吸附','Grid snap disabled'));
+    setStatus(boardSnapEnabled ? L('已开启节点对齐','Node alignment enabled') : L('已关闭节点对齐','Node alignment disabled'));
 });
 pasteCanvasBtn?.addEventListener('click', pasteCanvas);
 

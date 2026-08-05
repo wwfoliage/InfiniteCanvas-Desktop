@@ -26,14 +26,21 @@ class SnapAndThemeContractTests(unittest.TestCase):
         ):
             self.assertIn(token, self.shell)
 
-    def test_smart_snap_toggle_is_before_workflow_and_remembered(self):
+    def test_smart_node_snap_toggle_is_before_workflow_and_remembered(self):
         self.assertLess(self.smart_html.index('id="smartSnapToggle"'), self.smart_html.index('id="smartWorkflowToggle"'))
         for token in (
-            "smart_canvas_grid_snap",
-            "function snapSmartCoordinate(value)",
+            "smart_canvas_node_snap",
+            "function alignSmartDrag(rawDx, rawDy, state)",
+            "NodeAlignment.findAlignment",
+            "6 / viewport.scale",
+            "function renderSmartAlignmentGuides(guides)",
+            "function clearSmartAlignmentGuides()",
             "localStorage.setItem(SMART_SNAP_KEY",
         ):
             self.assertIn(compact(token), self.smart_compact)
+        self.assertNotIn("SMART_GRID_SIZE", self.smart_js)
+        self.assertNotIn("snapSmartCoordinate", self.smart_js)
+        self.assertIn('/static/js/alignment-guides.js', self.smart_html)
 
 
 if __name__ == "__main__":

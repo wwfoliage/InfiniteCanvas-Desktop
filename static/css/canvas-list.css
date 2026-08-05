@@ -142,6 +142,9 @@ html[data-studio-scale="off"].studio-scale-managed .workspace {
 .ws-board { position:relative; flex:1; min-height:0; overflow:hidden; background:var(--page); background-image:linear-gradient(rgba(100,116,139,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(100,116,139,.045) 1px, transparent 1px), radial-gradient(var(--grid) 1px, transparent 1px); background-size:120px 120px, 120px 120px, 24px 24px; cursor:grab; user-select:none; }
 .ws-board.panning { cursor:grabbing; }
 .ws-board-world { position:absolute; left:0; top:0; transform-origin:0 0; will-change:transform; }
+.ws-alignment-guides { position:absolute; inset:0; pointer-events:none; z-index:90; overflow:visible; }
+.ws-alignment-guide { position:absolute; pointer-events:none; background:#2563eb; box-shadow:0 0 0 .5px rgba(255,255,255,.72); }
+.theme-dark .ws-alignment-guide { background:#60a5fa; box-shadow:0 0 0 .5px rgba(15,23,42,.82); }
 
 .ws-board-empty { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); display:flex; flex-direction:column; align-items:center; gap:12px; width:min(320px, calc(100% - 48px)); color:var(--faint); }
 .ws-board-empty.hidden { display:none; }

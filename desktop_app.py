@@ -28,6 +28,7 @@ from app_paths import (
     save_path_overrides,
 )
 from app_settings import AppSettingsStore, default_download_directory, settings_for_client
+from desktop_bridge import register_desktop_api, unregister_desktop_api
 
 
 LOGGER = logging.getLogger("infinitecanvas.desktop")
@@ -144,6 +145,7 @@ class DesktopApi:
 
     def set_window(self, window: Any) -> None:
         self.window = window
+        LOGGER.info("Desktop API attached to PyWebView window")
 
     def _directory_for_kind(self, kind: str) -> Path | None:
         if kind not in self.ALLOWED_DIRECTORY_KINDS:
@@ -164,9 +166,16 @@ class DesktopApi:
     def _choose_directory(self, current: Path | None) -> Path | None:
         if self.window is None or self.folder_dialog_type is None:
             return None
+        start_directory = current
+        while start_directory and not start_directory.is_dir():
+            parent = start_directory.parent
+            start_directory = parent if parent != start_directory else None
+        if start_directory is None:
+            fallback = default_download_directory()
+            start_directory = fallback if fallback.is_dir() else Path.home()
         selected = self.window.create_file_dialog(
             self.folder_dialog_type,
-            directory=str(current) if current else "",
+            directory=str(start_directory),
             allow_multiple=False,
         )
         if not selected:
@@ -178,17 +187,25 @@ class DesktopApi:
         return directory.resolve()
 
     def choose_download_directory(self) -> dict[str, Any]:
+        LOGGER.info("Choose directory requested: kind=downloads")
         if self.window is None or self.folder_dialog_type is None:
+            LOGGER.error("Choose directory unavailable: kind=downloads")
             return {"ok": False, "error_code": "desktop_dialog_unavailable"}
         try:
             directory = self._choose_directory(self._directory_for_kind("downloads"))
-        except ValueError:
-            return {"ok": False, "error_code": "invalid_directory"}
+        except ValueError as exc:
+            LOGGER.warning("Choose directory rejected: kind=downloads error=%s", exc)
+            return {"ok": False, "error_code": "invalid_directory", "message": str(exc)}
+        except Exception as exc:
+            LOGGER.exception("Choose directory failed: kind=downloads")
+            return {"ok": False, "error_code": "desktop_dialog_failed", "message": str(exc)}
         if directory is None:
+            LOGGER.info("Choose directory cancelled: kind=downloads")
             return {"ok": False, "cancelled": True}
         settings = self.settings_store.update(
             {"downloads": {"directory": str(directory.resolve())}}
         )
+        LOGGER.info("Choose directory succeeded: kind=downloads directory=%s", directory)
         return {
             "ok": True,
             "directory": str(directory.resolve()),
@@ -197,6 +214,7 @@ class DesktopApi:
 
     def choose_directory(self, kind: str) -> dict[str, Any]:
         kind = str(kind or "")
+        LOGGER.info("Choose directory requested: kind=%s", kind)
         if kind == "downloads":
             return self.choose_download_directory()
         if kind not in {"data", "cache"}:
@@ -205,9 +223,14 @@ class DesktopApi:
             return {"ok": False, "error_code": "desktop_dialog_unavailable"}
         try:
             directory = self._choose_directory(self._directory_for_kind(kind))
-        except ValueError:
-            return {"ok": False, "error_code": "invalid_directory"}
+        except ValueError as exc:
+            LOGGER.warning("Choose directory rejected: kind=%s error=%s", kind, exc)
+            return {"ok": False, "error_code": "invalid_directory", "message": str(exc)}
+        except Exception as exc:
+            LOGGER.exception("Choose directory failed: kind=%s", kind)
+            return {"ok": False, "error_code": "desktop_dialog_failed", "message": str(exc)}
         if directory is None:
+            LOGGER.info("Choose directory cancelled: kind=%s", kind)
             return {"ok": False, "cancelled": True}
         try:
             if kind == "data":
@@ -226,6 +249,7 @@ class DesktopApi:
             else:
                 directory.mkdir(parents=True, exist_ok=True)
                 save_path_overrides({"cache_dir": str(directory)})
+            LOGGER.info("Choose directory succeeded: kind=%s directory=%s", kind, directory)
             return {
                 "ok": True,
                 "kind": kind,
@@ -237,7 +261,9 @@ class DesktopApi:
             return {"ok": False, "error_code": "directory_migration_failed", "message": str(exc)}
 
     def open_directory(self, kind: str) -> dict[str, Any]:
-        directory = self._directory_for_kind(str(kind or ""))
+        kind = str(kind or "")
+        LOGGER.info("Open directory requested: kind=%s", kind)
+        directory = self._directory_for_kind(kind)
         if directory is None:
             return {"ok": False, "error_code": "directory_not_allowed"}
         try:
@@ -246,9 +272,11 @@ class DesktopApi:
             if not self.opener:
                 return {"ok": False, "error_code": "directory_open_unavailable"}
             self.opener(str(directory))
+            LOGGER.info("Open directory succeeded: kind=%s directory=%s", kind, directory)
             return {"ok": True, "directory": str(directory)}
-        except OSError:
-            return {"ok": False, "error_code": "directory_open_failed"}
+        except Exception as exc:
+            LOGGER.exception("Open directory failed: kind=%s directory=%s", kind, directory)
+            return {"ok": False, "error_code": "directory_open_failed", "message": str(exc)}
 
     def install_update(self, url: str, version: str = "") -> dict[str, Any]:
         parsed = urllib.parse.urlparse(str(url or ""))
@@ -326,9 +354,11 @@ def run_desktop() -> int:
         APP_SETTINGS,
         folder_dialog_type=webview.FOLDER_DIALOG,
     )
+    register_desktop_api(desktop_api)
     try:
         return run_window(webview, runtime, url, paths.webview_data_dir, desktop_api)
     finally:
+        unregister_desktop_api(desktop_api)
         close_logging()
 
 
