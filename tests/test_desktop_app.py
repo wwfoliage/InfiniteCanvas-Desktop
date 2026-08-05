@@ -166,6 +166,46 @@ class DesktopAppTests(unittest.TestCase):
             self.assertTrue(assets_result["ok"])
             opener.assert_called_once_with(str(paths.assets_dir.resolve()))
 
+    @patch("desktop_app.save_path_overrides")
+    def test_desktop_api_selects_storage_and_cache_directories(self, save_overrides):
+        from app_paths import resolve_app_paths
+        from app_settings import AppSettingsStore
+        from desktop_app import DesktopApi
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            paths = resolve_app_paths(resource_dir=root / "bundle", data_dir=root / "data", frozen=True)
+            paths.data_dir.mkdir(parents=True)
+            (paths.data_dir / "keep.txt").write_text("keep", encoding="utf-8")
+            chosen = root / "chosen"
+            chosen.mkdir()
+            window = MagicMock()
+            window.create_file_dialog.return_value = (str(chosen),)
+            api = DesktopApi(paths, AppSettingsStore(paths.app_settings_file), folder_dialog_type="folder")
+            api.set_window(window)
+
+            storage = api.choose_directory("data")
+            cache = api.choose_directory("cache")
+
+            self.assertTrue(storage["ok"])
+            self.assertTrue(storage["restart_required"])
+            self.assertEqual((chosen / "keep.txt").read_text(encoding="utf-8"), "keep")
+            self.assertTrue(cache["ok"])
+            save_overrides.assert_any_call({"data_dir": str(chosen.resolve())})
+            save_overrides.assert_any_call({"cache_dir": str(chosen.resolve())})
+
+    def test_desktop_api_rejects_untrusted_update_installer(self):
+        from app_paths import resolve_app_paths
+        from app_settings import AppSettingsStore
+        from desktop_app import DesktopApi
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            paths = resolve_app_paths(resource_dir=temp_dir, data_dir=Path(temp_dir) / "data", frozen=True)
+            api = DesktopApi(paths, AppSettingsStore(paths.app_settings_file))
+            result = api.install_update("https://example.com/update.exe", "2026.09.01")
+            self.assertFalse(result["ok"])
+            self.assertEqual(result["error_code"], "untrusted_installer_url")
+
     def test_logging_writes_to_user_log_directory(self):
         from desktop_app import close_logging, configure_logging
 

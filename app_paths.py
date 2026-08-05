@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import sys
 from dataclasses import dataclass
@@ -10,6 +11,7 @@ from pathlib import Path
 class AppPaths:
     resource_dir: Path
     data_dir: Path
+    cache_dir: Path | None = None
 
     @property
     def static_dir(self) -> Path:
@@ -77,7 +79,7 @@ class AppPaths:
 
     @property
     def media_preview_dir(self) -> Path:
-        return self.runtime_data_dir / "media_previews"
+        return self.cache_dir or (self.runtime_data_dir / "media_previews")
 
     @property
     def asset_library_file(self) -> Path:
@@ -151,6 +153,51 @@ def _default_local_app_data() -> Path:
     return Path.home() / "AppData" / "Local"
 
 
+def path_overrides_file() -> Path:
+    return (_default_local_app_data() / "InfiniteCanvas" / "path_overrides.json").resolve()
+
+
+def load_path_overrides() -> dict[str, str]:
+    try:
+        raw = json.loads(path_overrides_file().read_text(encoding="utf-8"))
+    except (FileNotFoundError, OSError, json.JSONDecodeError):
+        return {}
+    if not isinstance(raw, dict):
+        return {}
+    result: dict[str, str] = {}
+    for key in ("data_dir", "cache_dir"):
+        value = str(raw.get(key) or "").strip()
+        if value:
+            candidate = Path(value).expanduser()
+            if candidate.is_absolute():
+                result[key] = str(candidate.resolve())
+    return result
+
+
+def save_path_overrides(patch: dict[str, str]) -> dict[str, str]:
+    current = load_path_overrides()
+    for key in ("data_dir", "cache_dir"):
+        if key not in patch:
+            continue
+        value = str(patch.get(key) or "").strip()
+        if not value:
+            current.pop(key, None)
+            continue
+        candidate = Path(value).expanduser()
+        if not candidate.is_absolute():
+            raise ValueError(f"{key} must be an absolute path")
+        current[key] = str(candidate.resolve())
+    target = path_overrides_file()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_name(f".{target.name}.{os.getpid()}.tmp")
+    try:
+        temporary.write_text(json.dumps(current, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        os.replace(temporary, target)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return current
+
+
 def resolve_app_paths(
     resource_dir: Path | str | None = None,
     data_dir: Path | str | None = None,
@@ -165,18 +212,26 @@ def resolve_app_paths(
     else:
         resource_root = Path(resource_dir).expanduser().resolve()
 
+    overrides = load_path_overrides() if packaged else {}
     if data_dir is not None:
         data_root = Path(data_dir).expanduser().resolve()
     else:
         configured = os.environ.get("INFINITE_CANVAS_DATA_DIR", "").strip()
         if configured:
             data_root = Path(configured).expanduser().resolve()
+        elif packaged and overrides.get("data_dir"):
+            data_root = Path(overrides["data_dir"]).resolve()
         elif packaged:
             data_root = (_default_local_app_data() / "InfiniteCanvas").resolve()
         else:
             data_root = resource_root
 
-    return AppPaths(resource_dir=resource_root, data_dir=data_root)
+    configured_cache = os.environ.get("INFINITE_CANVAS_CACHE_DIR", "").strip()
+    cache_root = Path(configured_cache).expanduser().resolve() if configured_cache else None
+    if cache_root is None and packaged and overrides.get("cache_dir"):
+        cache_root = Path(overrides["cache_dir"]).resolve()
+
+    return AppPaths(resource_dir=resource_root, data_dir=data_root, cache_dir=cache_root)
 
 
 def ensure_user_directories(paths: AppPaths) -> None:

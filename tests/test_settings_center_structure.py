@@ -59,9 +59,10 @@ class SettingsCenterStructureTests(unittest.TestCase):
             "/api/cache-cleanup-preview",
             "/api/cache-cleanup",
             "/api/check-update",
-            "/api/update-from-github",
         ):
             self.assertIn(endpoint, script)
+        self.assertIn("requestNative('install-update'", script)
+        self.assertNotIn("/api/update-from-github", script)
         self.assertNotRegex(script, r"setInterval\s*\([^)]*checkUpdate")
 
     def test_settings_layout_has_fixed_navigation_and_responsive_rules(self):

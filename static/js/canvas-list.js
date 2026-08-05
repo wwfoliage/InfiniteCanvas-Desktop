@@ -60,8 +60,8 @@ const newProjectCancel = document.getElementById('newProjectCancel');
 const newCanvasBtn = document.getElementById('newCanvasBtn');
 const boardRefreshBtn = document.getElementById('boardRefresh');
 const boardResetViewBtn = document.getElementById('boardResetView');
+const boardSnapToggle = document.getElementById('boardSnapToggle');
 const pasteCanvasBtn = document.getElementById('pasteCanvasBtn');
-const emptyCreateCanvasBtn = document.getElementById('emptyCreateCanvasBtn');
 const statusEl = document.getElementById('boardStatus');
 
 /* ===== State ===== */
@@ -76,6 +76,24 @@ let clipboardCanvasId = null;   // 剪切的画布（切到别的项目后粘贴
 // board viewport (mirrors smart-canvas math)
 const viewport = { x: 0, y: 0, scale: 1 };
 const MIN_SCALE = 0.3, MAX_SCALE = 2;
+const CANVAS_LIST_SNAP_KEY = 'canvas_list_grid_snap';
+const BOARD_GRID_SIZE = 24;
+let boardSnapEnabled = false;
+try { boardSnapEnabled = localStorage.getItem(CANVAS_LIST_SNAP_KEY) === '1'; } catch(e) {}
+
+function snapBoardCoordinate(value){
+    const numeric = Number(value) || 0;
+    return boardSnapEnabled ? Math.round(numeric / BOARD_GRID_SIZE) * BOARD_GRID_SIZE : numeric;
+}
+
+function updateBoardSnapToggle(){
+    if(!boardSnapToggle) return;
+    boardSnapToggle.classList.toggle('active', boardSnapEnabled);
+    boardSnapToggle.setAttribute('aria-pressed', boardSnapEnabled ? 'true' : 'false');
+    const label = boardSnapEnabled ? L('关闭网格吸附','Disable grid snap') : L('开启网格吸附','Enable grid snap');
+    boardSnapToggle.title = label;
+    boardSnapToggle.setAttribute('aria-label', label);
+}
 
 /* ===== Status toast ===== */
 function setStatus(text){
@@ -469,7 +487,8 @@ function attachCardDrag(card, c){
                 moved = true; card.classList.add('dragging');
             }
             if(moved){
-                c.board_x = origX + dx; c.board_y = origY + dy;
+                c.board_x = snapBoardCoordinate(origX + dx);
+                c.board_y = snapBoardCoordinate(origY + dy);
                 card.style.left = c.board_x + 'px';
                 card.style.top = c.board_y + 'px';
             }
@@ -570,8 +589,8 @@ async function createCanvasOnBoard(title, kind, worldPt){
                 icon: isSmart ? 'sparkles' : '🧩',
                 kind: isSmart ? 'smart' : 'classic',
                 project: currentProjectId,
-                board_x: Math.round(worldPt.x),
-                board_y: Math.round(worldPt.y)
+                board_x: Math.round(snapBoardCoordinate(worldPt.x)),
+                board_y: Math.round(snapBoardCoordinate(worldPt.y))
             })
         });
         if(!res.ok) throw new Error('create canvas failed');
@@ -579,8 +598,8 @@ async function createCanvasOnBoard(title, kind, worldPt){
         const nc = data.canvas;
         if(nc){
             if(nc.project == null) nc.project = currentProjectId;
-            if(nc.board_x == null) nc.board_x = Math.round(worldPt.x);
-            if(nc.board_y == null) nc.board_y = Math.round(worldPt.y);
+            if(nc.board_x == null) nc.board_x = Math.round(snapBoardCoordinate(worldPt.x));
+            if(nc.board_y == null) nc.board_y = Math.round(snapBoardCoordinate(worldPt.y));
             canvases.push(nc);
             renderBoard();
             renderProjects();
@@ -1024,13 +1043,15 @@ board.addEventListener('dblclick', e => {
 });
 
 newCanvasBtn.addEventListener('click', () => openCreateCard(boardCenterWorld()));
-emptyCreateCanvasBtn?.addEventListener('mousedown', e => e.stopPropagation());
-emptyCreateCanvasBtn?.addEventListener('click', e => {
-    e.stopPropagation();
-    openCreateCard(boardCenterWorld());
-});
 boardRefreshBtn.addEventListener('click', loadAll);
 boardResetViewBtn.addEventListener('click', resetView);
+boardSnapToggle?.addEventListener('click', event => {
+    event.stopPropagation();
+    boardSnapEnabled = !boardSnapEnabled;
+    try { localStorage.setItem(CANVAS_LIST_SNAP_KEY, boardSnapEnabled ? '1' : '0'); } catch(e) {}
+    updateBoardSnapToggle();
+    setStatus(boardSnapEnabled ? L('已开启网格吸附','Grid snap enabled') : L('已关闭网格吸附','Grid snap disabled'));
+});
 pasteCanvasBtn?.addEventListener('click', pasteCanvas);
 
 newProjectBtn.addEventListener('click', openNewProject);
@@ -1074,12 +1095,14 @@ window.addEventListener('message', event => {
         renderProjects();
         renderBoard();
         if(trashPanel.classList.contains('active')) renderTrash();
+        updateBoardSnapToggle();
         refreshIcons();
     }
 });
 
 /* ===== Boot ===== */
 window.StudioI18n?.apply?.();
+updateBoardSnapToggle();
 applyViewport();
 loadAll();
 refreshIcons();

@@ -4,18 +4,29 @@ import ctypes
 import logging
 import multiprocessing
 import os
+import re
+import shutil
 import socket
+import subprocess
 import sys
 import threading
 import time
 import traceback
+import urllib.error
+import urllib.parse
+import urllib.request
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any
 
 import uvicorn
 
-from app_paths import ensure_user_directories, resolve_app_paths
+from app_paths import (
+    ensure_user_directories,
+    load_path_overrides,
+    resolve_app_paths,
+    save_path_overrides,
+)
 from app_settings import AppSettingsStore, default_download_directory, settings_for_client
 
 
@@ -140,29 +151,41 @@ class DesktopApi:
         if kind == "downloads":
             configured = str(self.settings_store.load()["downloads"].get("directory") or "")
             return Path(configured) if configured else default_download_directory()
+        overrides = load_path_overrides()
+        data_root = Path(overrides.get("data_dir") or self.paths.data_dir)
         if kind == "data":
-            return self.paths.data_dir
+            return data_root
         if kind == "assets":
-            return self.paths.assets_dir
+            return data_root / "assets"
         if kind == "cache":
-            return self.paths.media_preview_dir
-        return self.paths.logs_dir
+            return Path(overrides.get("cache_dir") or self.paths.media_preview_dir)
+        return data_root / "logs"
+
+    def _choose_directory(self, current: Path | None) -> Path | None:
+        if self.window is None or self.folder_dialog_type is None:
+            return None
+        selected = self.window.create_file_dialog(
+            self.folder_dialog_type,
+            directory=str(current) if current else "",
+            allow_multiple=False,
+        )
+        if not selected:
+            return None
+        raw = selected[0] if isinstance(selected, (list, tuple)) else selected
+        directory = Path(str(raw)).expanduser()
+        if not directory.is_absolute() or not directory.is_dir():
+            raise ValueError("invalid_directory")
+        return directory.resolve()
 
     def choose_download_directory(self) -> dict[str, Any]:
         if self.window is None or self.folder_dialog_type is None:
             return {"ok": False, "error_code": "desktop_dialog_unavailable"}
-        current = self._directory_for_kind("downloads")
-        selected = self.window.create_file_dialog(
-            self.folder_dialog_type,
-            directory=str(current),
-            allow_multiple=False,
-        )
-        if not selected:
-            return {"ok": False, "cancelled": True}
-        raw = selected[0] if isinstance(selected, (list, tuple)) else selected
-        directory = Path(str(raw)).expanduser()
-        if not directory.is_absolute() or not directory.is_dir():
+        try:
+            directory = self._choose_directory(self._directory_for_kind("downloads"))
+        except ValueError:
             return {"ok": False, "error_code": "invalid_directory"}
+        if directory is None:
+            return {"ok": False, "cancelled": True}
         settings = self.settings_store.update(
             {"downloads": {"directory": str(directory.resolve())}}
         )
@@ -171,6 +194,47 @@ class DesktopApi:
             "directory": str(directory.resolve()),
             "settings": settings_for_client(settings),
         }
+
+    def choose_directory(self, kind: str) -> dict[str, Any]:
+        kind = str(kind or "")
+        if kind == "downloads":
+            return self.choose_download_directory()
+        if kind not in {"data", "cache"}:
+            return {"ok": False, "error_code": "directory_not_configurable"}
+        if self.window is None or self.folder_dialog_type is None:
+            return {"ok": False, "error_code": "desktop_dialog_unavailable"}
+        try:
+            directory = self._choose_directory(self._directory_for_kind(kind))
+        except ValueError:
+            return {"ok": False, "error_code": "invalid_directory"}
+        if directory is None:
+            return {"ok": False, "cancelled": True}
+        try:
+            if kind == "data":
+                source = self.paths.data_dir.expanduser().resolve()
+                if directory != source:
+                    try:
+                        if directory.is_relative_to(source) or source.is_relative_to(directory):
+                            return {"ok": False, "error_code": "overlapping_directory"}
+                    except AttributeError:
+                        source_text = str(source).casefold().rstrip("\\/")
+                        target_text = str(directory).casefold().rstrip("\\/")
+                        if source_text.startswith(target_text + os.sep) or target_text.startswith(source_text + os.sep):
+                            return {"ok": False, "error_code": "overlapping_directory"}
+                    shutil.copytree(source, directory, dirs_exist_ok=True)
+                save_path_overrides({"data_dir": str(directory)})
+            else:
+                directory.mkdir(parents=True, exist_ok=True)
+                save_path_overrides({"cache_dir": str(directory)})
+            return {
+                "ok": True,
+                "kind": kind,
+                "directory": str(directory),
+                "restart_required": True,
+            }
+        except OSError as exc:
+            LOGGER.exception("Could not relocate %s directory", kind)
+            return {"ok": False, "error_code": "directory_migration_failed", "message": str(exc)}
 
     def open_directory(self, kind: str) -> dict[str, Any]:
         directory = self._directory_for_kind(str(kind or ""))
@@ -185,6 +249,35 @@ class DesktopApi:
             return {"ok": True, "directory": str(directory)}
         except OSError:
             return {"ok": False, "error_code": "directory_open_failed"}
+
+    def install_update(self, url: str, version: str = "") -> dict[str, Any]:
+        parsed = urllib.parse.urlparse(str(url or ""))
+        expected_prefix = "/wwfoliage/InfiniteCanvas-Desktop/releases/download/"
+        if (
+            parsed.scheme != "https"
+            or parsed.netloc.casefold() != "github.com"
+            or not parsed.path.casefold().startswith(expected_prefix.casefold())
+            or not parsed.path.casefold().endswith(".exe")
+        ):
+            return {"ok": False, "error_code": "untrusted_installer_url"}
+        safe_version = re.sub(r"[^0-9A-Za-z._-]+", "-", str(version or "latest")).strip("-.") or "latest"
+        target_dir = self.paths.download_temp_dir / "updates"
+        target = target_dir / f"InfiniteCanvas-Setup-{safe_version}.exe"
+        temporary = target.with_suffix(".download")
+        try:
+            target_dir.mkdir(parents=True, exist_ok=True)
+            request = urllib.request.Request(str(url), headers={"User-Agent": "InfiniteCanvas-Desktop-Updater"})
+            with urllib.request.urlopen(request, timeout=120) as response, temporary.open("wb") as output:
+                shutil.copyfileobj(response, output)
+            if temporary.stat().st_size < 1024 * 1024:
+                raise OSError("installer download is unexpectedly small")
+            os.replace(temporary, target)
+            subprocess.Popen([str(target)], cwd=str(target_dir))
+            return {"ok": True, "installer": str(target)}
+        except (OSError, urllib.error.URLError) as exc:
+            temporary.unlink(missing_ok=True)
+            LOGGER.exception("Could not download or launch update installer")
+            return {"ok": False, "error_code": "installer_launch_failed", "message": str(exc)}
 
 
 def run_window(

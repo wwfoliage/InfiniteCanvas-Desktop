@@ -88,6 +88,21 @@ class AppPathsTests(unittest.TestCase):
             self.assertTrue(paths.logs_dir.is_dir())
             self.assertTrue(paths.download_temp_dir.is_dir())
 
+    def test_packaged_mode_applies_persisted_data_and_cache_overrides(self):
+        from app_paths import resolve_app_paths, save_path_overrides
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            local = root / "Local"
+            data = root / "RelocatedData"
+            cache = root / "RelocatedCache"
+            with patch.dict(os.environ, {"LOCALAPPDATA": str(local)}, clear=False):
+                save_path_overrides({"data_dir": str(data), "cache_dir": str(cache)})
+                paths = resolve_app_paths(resource_dir=root / "bundle", frozen=True)
+
+            self.assertEqual(paths.data_dir, data.resolve())
+            self.assertEqual(paths.media_preview_dir, cache.resolve())
+
 
 if __name__ == "__main__":
     unittest.main()

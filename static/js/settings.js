@@ -7,13 +7,13 @@
             settingsTitle:'设置',downloads:'下载设置',appearance:'界面设置',language:'语言设置',apiSettings:'API 设置',workflow:'工作流设置',storage:'存储与缓存',about:'关于与更新',
             fileHandling:'文件处理',downloadDirectory:'下载目录',downloadDirectoryHint:'文件将直接保存到此目录',changeDirectory:'更改目录',restoreDefault:'恢复默认',openFolder:'打开文件夹',categorize:'按类型整理',categorizeHint:'图片、视频、音频、工作流和画布导出分别保存',sameName:'同名文件',sameNameHint:'保留原文件并自动追加序号',appendNumber:'自动追加序号',notify:'完成提醒',notifyHint:'显示文件名、保存位置和打开文件夹操作',
             visualPreferences:'视觉偏好',colorMode:'颜色模式',colorModeHint:'跟随系统会在系统外观变化时自动切换',themeSystem:'跟随系统',themeLight:'浅色',themeDark:'深色',uiScale:'界面缩放',uiScaleHint:'只调整文字和控件，不改变画布或导出尺寸',scaleAuto:'自动',contentLanguage:'内容语言',displayLanguage:'显示语言',displayLanguageHint:'切换后主界面和已打开页面立即更新',connections:'连接与模型',diskUsage:'磁盘占用',refresh:'刷新',rebuildableCache:'可重建缓存',cacheHint:'仅包含媒体预览和未完成下载的临时文件',clearCache:'清理缓存',version:'版本',manualUpdate:'手动更新',updateHint:'仅在你检查并确认后下载或安装',checkUpdate:'检查更新',downloadConnectivity:'下载源网络',notChecked:'尚未检测',probe:'检测',applicationLogs:'应用日志',logsHint:'用于排查启动、下载和更新问题',
-            saved:'已保存',saveFailed:'保存失败',chooseFailed:'无法选择目录',openFailed:'无法打开文件夹',projects:'项目数据',assets:'素材',cache:'媒体预览缓存',logs:'日志',downloadFiles:'下载文件',loading:'正在读取…',cacheConfirm:'将清理 {size} 的媒体预览和未完成下载临时文件。不会删除画布、项目、素材、工作流、API 配置或日志。是否继续？',cacheDone:'已清理 {size}',noCache:'没有可清理的缓存',checking:'正在检查…',upToDate:'当前已是最新版本',updateAvailable:'发现新版本 {version}',installUpdate:'下载并安装更新',installConfirm:'将下载并安装 {version}，完成后应用可能重启。是否继续？',updating:'正在更新…',updateDone:'更新已完成',networkAvailable:'可用',networkUnavailable:'不可用',requestFailed:'请求失败'
+            saved:'已保存',saveFailed:'保存失败',chooseFailed:'无法选择目录',openFailed:'无法打开文件夹',storageDirectory:'存储目录',storageDirectoryHint:'项目、素材、工作流、API 配置和日志',cacheDirectory:'缓存目录',cacheDirectoryHint:'视频封面和媒体预览缓存，可随时重建',restartRequired:'目录已修改，重新启动应用后生效',projects:'项目数据',assets:'素材',cache:'媒体预览缓存',logs:'日志',downloadFiles:'下载文件',loading:'正在读取…',cacheConfirm:'将清理 {size} 的媒体预览和未完成下载临时文件。不会删除画布、项目、素材、工作流、API 配置或日志。是否继续？',cacheDone:'已清理 {size}',noCache:'没有可清理的缓存',checking:'正在检查…',upToDate:'当前已是最新版本',updateAvailable:'发现新版本 {version}',installUpdate:'下载并安装更新',installConfirm:'将下载并启动 {version} 完整安装包，安装时应用会关闭。是否继续？',updating:'正在下载安装包…',updateDone:'安装包已启动',networkAvailable:'可用',networkUnavailable:'不可用',requestFailed:'请求失败'
         },
         en:{
             settingsTitle:'Settings',downloads:'Downloads',appearance:'Appearance',language:'Language',apiSettings:'API Settings',workflow:'Workflow',storage:'Storage & Cache',about:'About & Updates',
             fileHandling:'File handling',downloadDirectory:'Download folder',downloadDirectoryHint:'Files are saved directly to this folder',changeDirectory:'Change folder',restoreDefault:'Restore default',openFolder:'Open folder',categorize:'Organize by type',categorizeHint:'Separate images, videos, audio, workflows, and canvas exports',sameName:'Duplicate names',sameNameHint:'Keep the original and append a number',appendNumber:'Append a number',notify:'Completion notification',notifyHint:'Show the file name, saved location, and open-folder action',
             visualPreferences:'Visual preferences',colorMode:'Color mode',colorModeHint:'System mode follows operating system appearance changes',themeSystem:'Use system',themeLight:'Light',themeDark:'Dark',uiScale:'Interface scale',uiScaleHint:'Adjusts text and controls without changing canvas or export sizes',scaleAuto:'Auto',contentLanguage:'Content language',displayLanguage:'Display language',displayLanguageHint:'Updates the main interface and loaded pages immediately',connections:'Connections & models',diskUsage:'Disk usage',refresh:'Refresh',rebuildableCache:'Rebuildable cache',cacheHint:'Media previews and unfinished download temporary files only',clearCache:'Clear cache',version:'Version',manualUpdate:'Manual updates',updateHint:'Downloads or installs only after you check and confirm',checkUpdate:'Check for updates',downloadConnectivity:'Download source network',notChecked:'Not checked',probe:'Probe',applicationLogs:'Application logs',logsHint:'Used to diagnose startup, download, and update problems',
-            saved:'Saved',saveFailed:'Save failed',chooseFailed:'Could not choose a folder',openFailed:'Could not open folder',projects:'Project data',assets:'Assets',cache:'Media preview cache',logs:'Logs',downloadFiles:'Downloads',loading:'Loading…',cacheConfirm:'Clear {size} of media previews and unfinished download files? Canvases, projects, assets, workflows, API configuration, and logs are excluded.',cacheDone:'Cleared {size}',noCache:'No cache to clear',checking:'Checking…',upToDate:'You are up to date',updateAvailable:'Version {version} is available',installUpdate:'Download and install',installConfirm:'Download and install {version}? The app may restart when finished.',updating:'Updating…',updateDone:'Update complete',networkAvailable:'Available',networkUnavailable:'Unavailable',requestFailed:'Request failed'
+            saved:'Saved',saveFailed:'Save failed',chooseFailed:'Could not choose a folder',openFailed:'Could not open folder',storageDirectory:'Storage folder',storageDirectoryHint:'Projects, assets, workflows, API configuration, and logs',cacheDirectory:'Cache folder',cacheDirectoryHint:'Rebuildable video posters and media previews',restartRequired:'Folder changed. Restart the app to apply it.',projects:'Project data',assets:'Assets',cache:'Media preview cache',logs:'Logs',downloadFiles:'Downloads',loading:'Loading…',cacheConfirm:'Clear {size} of media previews and unfinished download files? Canvases, projects, assets, workflows, API configuration, and logs are excluded.',cacheDone:'Cleared {size}',noCache:'No cache to clear',checking:'Checking…',upToDate:'You are up to date',updateAvailable:'Version {version} is available',installUpdate:'Download and install',installConfirm:'Download and launch the full {version} installer? The app will close during installation.',updating:'Downloading installer…',updateDone:'Installer launched',networkAvailable:'Available',networkUnavailable:'Unavailable',requestFailed:'Request failed'
         }
     };
     const storageIcons = {projects:'folder-kanban',assets:'library',cache:'images',logs:'scroll-text',downloads:'download'};
@@ -126,12 +126,25 @@
         if(next === 'about') loadAbout();
         requestAnimationFrame(() => window.lucide?.createIcons?.());
     }
-    function requestNative(action, kind=''){
+    async function directNativeRequest(action, kind='', payload={}){
+        const api = window.top?.pywebview?.api || window.pywebview?.api;
+        if(!api) return null;
+        if(action === 'choose-download-directory') return api.choose_download_directory();
+        if(action === 'choose-directory') return api.choose_directory(kind);
+        if(action === 'open-directory') return api.open_directory(kind);
+        if(action === 'install-update') return api.install_update(payload.url || '', payload.version || '');
+        return {ok:false,error_code:'desktop_action_unknown'};
+    }
+    async function requestNative(action, kind='', payload={}){
+        try {
+            const direct = await directNativeRequest(action, kind, payload);
+            if(direct) return direct;
+        } catch(_) {}
         const id = `settings-native-${Date.now()}-${++nativeSequence}`;
         return new Promise(resolve => {
             const timer = setTimeout(() => { nativePending.delete(id); resolve({ok:false,error_code:'desktop_api_timeout'}); }, 8000);
             nativePending.set(id, result => { clearTimeout(timer); resolve(result); });
-            window.parent.postMessage({type:'settings-native-request',id,action,kind}, location.origin);
+            window.parent.postMessage({type:'settings-native-request',id,action,kind,payload}, location.origin);
         });
     }
     async function chooseDownloadDirectory(){
@@ -145,6 +158,13 @@
         const result = await requestNative('open-directory', kind);
         if(!result?.ok) showStatus(t('openFailed'), true);
     }
+    async function chooseDirectory(kind){
+        const result = await requestNative('choose-directory', kind);
+        if(result?.cancelled) return;
+        if(!result?.ok){ showStatus(t('chooseFailed'), true); return; }
+        showStatus(result.restart_required ? t('restartRequired') : t('saved'));
+        await refreshStorage();
+    }
     function formatBytes(value){
         const bytes = Math.max(0, Number(value) || 0);
         if(bytes < 1024) return `${bytes} B`;
@@ -157,6 +177,10 @@
         list.innerHTML = `<div class="storage-row"><div></div><div class="storage-row-copy"><span>${escapeHtml(t('loading'))}</span></div></div>`;
         try {
             const report = await requestJson('/api/storage-report');
+            const storageOutput = document.getElementById('storageDirectory');
+            const cacheOutput = document.getElementById('cacheDirectory');
+            if(storageOutput){ storageOutput.textContent = report.roots?.data || ''; storageOutput.title = report.roots?.data || ''; }
+            if(cacheOutput){ cacheOutput.textContent = report.roots?.cache || ''; cacheOutput.title = report.roots?.cache || ''; }
             list.innerHTML = report.entries.map(entry => `
                 <div class="storage-row">
                     <i data-lucide="${storageIcons[entry.kind] || 'folder'}"></i>
@@ -201,7 +225,7 @@
         if(!currentUpdate || !confirm(t('installConfirm',{version}))) return;
         const button = document.getElementById('installUpdate'); if(button) button.disabled = true;
         document.getElementById('updateSummary').textContent = t('updating');
-        try { await requestJson('/api/update-from-github',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source:currentUpdate.source || 'github',fallback:true,auto_restart:true})}); document.getElementById('updateSummary').textContent = t('updateDone'); }
+        try { const result = await requestNative('install-update', '', {url:currentUpdate.installer_url || '', version}); if(!result?.ok) throw new Error(result?.message || result?.error_code || t('requestFailed')); document.getElementById('updateSummary').textContent = t('updateDone'); }
         catch(error){ document.getElementById('updateSummary').textContent = error.message; if(button) button.disabled = false; }
     }
     async function probeConnectivity(){
@@ -226,6 +250,7 @@
         document.querySelectorAll('[data-setting-choice="scale"] button').forEach(button => button.addEventListener('click', () => persist({appearance:{scale:button.dataset.value}})));
         document.querySelectorAll('[data-setting-choice="language"] button').forEach(button => button.addEventListener('click', () => persist({language:button.dataset.value})));
         document.body.addEventListener('click', event => { const button = event.target.closest('[data-open-directory]'); if(button) openDirectory(button.dataset.openDirectory); });
+        document.body.addEventListener('click', event => { const button = event.target.closest('[data-choose-directory]'); if(button) chooseDirectory(button.dataset.chooseDirectory); });
         document.getElementById('refreshStorage').addEventListener('click', refreshStorage);
         document.getElementById('clearCache').addEventListener('click', clearCache);
         document.getElementById('checkUpdate').addEventListener('click', checkUpdate);

@@ -289,9 +289,9 @@
     });
     StudioI18n.register({
         "smart.mediakitTitle": { zh: "画质增强", en: "Video Enhance" },
-        "smart.mediakitCreateSub": { zh: "连接视频后，点击开始增强", en: "Connect a video, then click Start" },
+        "smart.mediakitCreateSub": { zh: "连接一个或多个视频后，点击开始增强", en: "Connect one or more videos, then click Start" },
         "smart.mediakitToolbar": { zh: "连接画质增强", en: "Connect Video Enhance" },
-        "smart.mediakitNodeHint": { zh: "连接一个视频，配置参数后点击开始增强", en: "Connect one video, configure it, then click Start" },
+        "smart.mediakitNodeHint": { zh: "连接一个或多个视频，配置参数后点击开始增强", en: "Connect one or more videos, configure them, then click Start" },
         "smart.mediakitVideoInput": { zh: "输入视频", en: "Input video" },
         "smart.mediakitResolution": { zh: "目标分辨率", en: "Target resolution" },
         "smart.mediakitBitrate": { zh: "码率档位", en: "Bitrate level" },
@@ -301,8 +301,8 @@
         "smart.mediakitKeepFps": { zh: "保持原帧率", en: "Keep source frame rate" },
         "smart.mediakitKeepFpsHint": { zh: "不向接口传入目标帧率", en: "Target frame rate is omitted" },
         "smart.mediakitTargetFps": { zh: "目标帧率（15–120）", en: "Target FPS (15–120)" },
-        "smart.mediakitConnectVideo": { zh: "请连接一个视频节点", en: "Connect one video node" },
-        "smart.mediakitOneVideo": { zh: "画质增强仅支持一个输入视频", en: "Video Enhance accepts exactly one video" },
+        "smart.mediakitConnectVideo": { zh: "请连接一个或多个视频节点", en: "Connect one or more video nodes" },
+        "smart.mediakitOneVideo": { zh: "请至少连接一个输入视频", en: "Connect at least one input video" },
         "smart.mediakitIdle": { zh: "准备就绪，点击开始后才会提交任务", en: "Ready. The task is submitted only after Start is clicked" },
         "smart.mediakitUploading": { zh: "正在上传输入视频…", en: "Uploading input video…" },
         "smart.mediakitProcessing": { zh: "云端正在增强视频…", en: "Enhancing video in the cloud…" },

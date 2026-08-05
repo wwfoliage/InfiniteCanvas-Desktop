@@ -28,6 +28,7 @@ const smartLogModal = document.getElementById('smartLogModal');
 const smartLogList = document.getElementById('smartLogList');
 const smartShortcutModal = document.getElementById('smartShortcutModal');
 const smartWorkflowToggle = document.getElementById('smartWorkflowToggle');
+const smartSnapToggle = document.getElementById('smartSnapToggle');
 const smartWorkflowTransferModal = document.getElementById('smartWorkflowTransferModal');
 const smartWorkflowTransferSub = document.getElementById('smartWorkflowTransferSub');
 const smartWorkflowExportMeta = document.getElementById('smartWorkflowExportMeta');
@@ -76,6 +77,25 @@ let selectedId = '';
 let selectedIds = [];
 let selectedImage = {nodeId:'', index:-1};
 let dragState = null;
+const SMART_SNAP_KEY = 'smart_canvas_grid_snap';
+const SMART_GRID_SIZE = 24;
+let smartSnapEnabled = false;
+try { smartSnapEnabled = localStorage.getItem(SMART_SNAP_KEY) === '1'; } catch(e) {}
+
+function snapSmartCoordinate(value){
+    const numeric = Number(value) || 0;
+    return smartSnapEnabled ? Math.round(numeric / SMART_GRID_SIZE) * SMART_GRID_SIZE : numeric;
+}
+
+function updateSmartSnapToggle(){
+    if(!smartSnapToggle) return;
+    smartSnapToggle.classList.toggle('active', smartSnapEnabled);
+    smartSnapToggle.setAttribute('aria-pressed', smartSnapEnabled ? 'true' : 'false');
+    const label = smartSnapEnabled ? '关闭网格吸附' : '开启网格吸附';
+    smartSnapToggle.title = label;
+    smartSnapToggle.setAttribute('aria-label', label);
+}
+updateSmartSnapToggle();
 let loopInsertPreview = null;
 let selectionState = null;
 let isRKeyDown = false;
@@ -495,8 +515,8 @@ function loadSmartOriginalImageDimensions(url){
 }
 function smartVideoPreviewHtml(itemOrUrl, size=512, attrs=''){
     const original = smartOriginalMediaUrl(itemOrUrl);
-    const preview = smartMediaPreviewUrl(itemOrUrl, size);
-    return `<img src="${escapeHtml(preview)}" data-preview-src="${escapeAttr(preview)}" data-original-src="${escapeAttr(original)}" data-url="${escapeAttr(original)}" data-preview-kind="video"${attrs ? ` ${attrs}` : ''}>`;
+    const src = displayMediaUrl({url:original});
+    return `<video src="${escapeHtml(src)}" data-original-src="${escapeAttr(original)}" data-url="${escapeAttr(original)}" data-preview-kind="video" muted preload="auto" playsinline disablepictureinpicture controlslist="nodownload noplaybackrate noremoteplayback"${attrs ? ` ${attrs}` : ''}></video>`;
 }
 function smartVideoFallbackHtml(url, attrs=''){
     const original = smartOriginalMediaUrl(url);
@@ -508,37 +528,51 @@ function smartVideoPlayerHtml(url, attrs=''){
     const safe = escapeHtml(displayMediaUrl({url:original}));
     return `<video src="${safe}" data-url="${escapeAttr(original)}" data-inline-video-active="1" controls autoplay playsinline preload="metadata" disablepictureinpicture controlslist="nodownload noplaybackrate noremoteplayback"${attrs ? ` ${attrs}` : ''}></video>`;
 }
+function smartMediaPlaybackIdentity(media){
+    if(!media) return '';
+    const nodeEl = media.closest?.('.image-node');
+    const itemEl = media.closest?.('[data-image-index]');
+    const tag = media.tagName?.toLowerCase?.() || 'media';
+    const nodeId = nodeEl?.dataset?.id || '';
+    const refNodeId = itemEl?.dataset?.refNodeId || nodeId;
+    const imageIndex = itemEl?.dataset?.refImageIndex ?? itemEl?.dataset?.imageIndex ?? '0';
+    const url = media.dataset?.url || media.getAttribute?.('src') || '';
+    return `${tag}:${nodeId}:${refNodeId}:${imageIndex}:${url}`;
+}
+function pauseOtherCanvasMedia(activeMedia){
+    world.querySelectorAll('video[data-url], audio[data-url]').forEach(media => {
+        if(media === activeMedia) return;
+        media.pause?.();
+    });
+}
+function bindSmartVideoPlaybackUi(video){
+    if(!video || video.dataset.playbackUiBound === '1') return;
+    video.dataset.playbackUiBound = '1';
+    const sync = () => {
+        const root = video.closest('.media-video-card,.video-thumb');
+        root?.classList.toggle('is-playing', !video.paused && !video.ended);
+    };
+    video.addEventListener('play', sync);
+    video.addEventListener('playing', sync);
+    video.addEventListener('pause', sync);
+    video.addEventListener('ended', sync);
+    sync();
+}
 function smartActivateVideoPreview(target){
     const root = target?.closest?.('.media-video-card,.video-thumb,.image-wrap,.thumb-item') || target?.parentElement || null;
-    const img = target?.matches?.('img[data-preview-kind="video"]') ? target : root?.querySelector?.('img[data-preview-kind="video"]');
-    if(!img){
-        const fallback = target?.matches?.('video[data-url]') ? target : root?.querySelector?.('video[data-url]');
-        if(fallback){
-            fallback.controls = true;
-            fallback.muted = false;
-            fallback.play?.().catch(() => {});
-            return true;
-        }
-        return false;
-    }
-    const original = smartOriginalMediaUrl(img.dataset.originalSrc || img.dataset.url || img.getAttribute('src') || '');
-    if(!original) return false;
+    const video = target?.matches?.('video[data-url]') ? target : root?.querySelector?.('video[data-url]');
+    if(!video) return false;
     const itemEl = target?.closest?.('[data-image-index]') || root?.closest?.('[data-image-index]') || root;
     const nodeEl = target?.closest?.('.image-node') || root?.closest?.('.image-node');
     const node = nodes.find(n => n.id === nodeEl?.dataset.id);
     const imageIndex = Number(itemEl?.dataset?.imageIndex ?? 0);
     const image = node?.images?.[imageIndex];
     if(image) image._inlineVideoActive = true;
-    const tpl = document.createElement('template');
-    tpl.innerHTML = smartVideoPlayerHtml(original);
-    const video = tpl.content.firstElementChild;
-    if(!video) return false;
-    img.replaceWith(video);
-    video.parentElement?.querySelector?.('.smart-video-play')?.style?.setProperty('display', 'none');
-    video.addEventListener('ended', () => {
-        if(image) image._inlineVideoActive = true;
-        video.dataset.inlineVideoActive = '1';
-    });
+    video.dataset.inlineVideoActive = '1';
+    video.controls = true;
+    video.muted = false;
+    pauseOtherCanvasMedia(video);
+    bindSmartVideoPlaybackUi(video);
     video.play?.().catch(() => {});
     return true;
 }
@@ -6069,7 +6103,7 @@ function inheritNodeMetaFromImage(node){
 function createNode(x, y, images=[], options={}){
     if(!options.skipUndo) pushUndo();
     const nodeImages = (images || []).map(img => ({...img}));
-    const node = {id:uid('smart'), type:'smart-image', x, y, title:nodeImages.length > 1 ? 'Group' : nodeImages.length ? 'Image' : tr('smart.createImportNode'), images:nodeImages, created_at:Date.now()};
+    const node = {id:uid('smart'), type:'smart-image', x:snapSmartCoordinate(x), y:snapSmartCoordinate(y), title:nodeImages.length > 1 ? 'Group' : nodeImages.length ? 'Image' : tr('smart.createImportNode'), images:nodeImages, created_at:Date.now()};
     node.scale = nodeImages.length > 1 ? MEDIA_GROUP_DEFAULT_SCALE : mediaNodeDefaultScale(node);
     inheritNodeMetaFromImage(node);
     nodes.push(node);
@@ -6084,8 +6118,8 @@ function createPromptNode(x, y, options={}){
     const node = {
         id:uid('prompt'),
         type:'smart-prompt',
-        x,
-        y,
+        x:snapSmartCoordinate(x),
+        y:snapSmartCoordinate(y),
         w:316,
         h:240,
         title:'Prompt',
@@ -6108,7 +6142,7 @@ function createPromptNode(x, y, options={}){
 }
 function createLoopNode(x, y, options={}){
     if(!options.skipUndo) pushUndo();
-    const node = {id:uid('loop'), type:'smart-loop', x, y, w:340, h:168, title:'Loop', count:1, mode:'serial', showPrompt:false, imageInput:false, loopStart:1, imageBatchSize:1, variablePrompt:'', created_at:Date.now()};
+    const node = {id:uid('loop'), type:'smart-loop', x:snapSmartCoordinate(x), y:snapSmartCoordinate(y), w:340, h:168, title:'Loop', count:1, mode:'serial', showPrompt:false, imageInput:false, loopStart:1, imageBatchSize:1, variablePrompt:'', created_at:Date.now()};
     nodes.push(node);
     if(options.select !== false) selectedId = node.id;
     render();
@@ -6120,8 +6154,8 @@ function createSmartVideoEnhanceNode(x, y, options={}){
     const node = {
         id:uid('enhance'),
         type:'smart-video-enhance',
-        x,
-        y,
+        x:snapSmartCoordinate(x),
+        y:snapSmartCoordinate(y),
         w:348,
         h:404,
         title:'MediaKit 画质增强',
@@ -6143,7 +6177,7 @@ function createSmartVideoEnhanceNode(x, y, options={}){
 }
 function createSmartGroupNode(x, y, options={}){
     if(!options.skipUndo) pushUndo();
-    const node = {id:uid('group'), type:'smart-group', x, y, w:SMART_GROUP_DEFAULT_WIDTH, h:SMART_GROUP_DEFAULT_HEIGHT, title:'智能分组', items:[], created_at:Date.now()};
+    const node = {id:uid('group'), type:'smart-group', x:snapSmartCoordinate(x), y:snapSmartCoordinate(y), w:SMART_GROUP_DEFAULT_WIDTH, h:SMART_GROUP_DEFAULT_HEIGHT, title:'智能分组', items:[], created_at:Date.now()};
     nodes.push(node);
     if(options.select !== false) selectedId = node.id;
     render();
@@ -6781,19 +6815,19 @@ function transplantSmartMediaElements(oldNodeEl, newNodeEl){
 function captureMediaPlaybackStates(){
     const states = new Map();
     world.querySelectorAll('video[data-url], audio[data-url]').forEach(media => {
-        const tag = media.tagName.toLowerCase();
-        const url = media.dataset.url || media.getAttribute('src') || '';
-        if(url) states.set(`${tag}:${url}`, captureMediaPlaybackState(media));
+        const key = smartMediaPlaybackIdentity(media);
+        if(key) states.set(key, captureMediaPlaybackState(media));
     });
     return states;
 }
 function restoreMediaPlaybackStates(states){
     if(!states?.size) return;
     world.querySelectorAll('video[data-url], audio[data-url]').forEach(media => {
-        const tag = media.tagName.toLowerCase();
-        const url = media.dataset.url || media.getAttribute('src') || '';
-        restoreMediaPlaybackState(media, states.get(`${tag}:${url}`));
+        restoreMediaPlaybackState(media, states.get(smartMediaPlaybackIdentity(media)));
     });
+}
+function pauseMediaInElement(element){
+    element?.querySelectorAll?.('video,audio')?.forEach(media => media.pause?.());
 }
 function smartRunTaskLabel(run){
     const s = run?.settings || {};
@@ -7425,18 +7459,23 @@ function smartGroupBodyHtml(node){
         ${members.length ? '' : `<div class="smart-group-empty"><i data-lucide="plus"></i><span>拖入图片自动收进分组</span></div>`}
     </div>`;
 }
-function smartMediaKitSourceItems(node){
+function smartMediaKitSourceEntries(node){
     if(!node) return [];
+    if(node.mediakitBatchSource?.url){
+        return [{sourceNode:nodes.find(item => item.id === node.mediakitSourceNodeId) || null, item:{...node.mediakitBatchSource}}];
+    }
     const seen = new Set();
-    return inputNodesFor(node).flatMap(source => imagesForNode(source))
-        .map(imageForDisplay)
-        .filter(item => item?.url && mediaKindForItem(item) === 'video')
-        .filter(item => {
-            const key = String(item.url || '');
+    return inputNodesFor(node).flatMap(sourceNode => imagesForNode(sourceNode).map(source => ({sourceNode, item:imageForDisplay(source)})))
+        .filter(entry => entry.item?.url && mediaKindForItem(entry.item) === 'video')
+        .filter(entry => {
+            const key = String(entry.item.url || '');
             if(!key || seen.has(key)) return false;
             seen.add(key);
             return true;
         });
+}
+function smartMediaKitSourceItems(node){
+    return smartMediaKitSourceEntries(node).map(entry => entry.item);
 }
 function smartMediaKitSourceItem(node){
     const items = smartMediaKitSourceItems(node);
@@ -7455,7 +7494,6 @@ function smartMediaKitStatusText(node){
 }
 function smartMediaKitEnhanceBodyHtml(node, options={}){
     const sourceItems = smartMediaKitSourceItems(node);
-    const source = sourceItems.length === 1 ? sourceItems[0] : null;
     const resolution = ['720p','1080p','2k'].includes(node.resolution) ? node.resolution : '720p';
     const bitrate = ['low','medium','high'].includes(node.bitrateLevel) ? node.bitrateLevel : 'medium';
     const keepSourceFps = node.keepSourceFps !== false;
@@ -7465,9 +7503,10 @@ function smartMediaKitEnhanceBodyHtml(node, options={}){
         ? (window.StudioI18n?.lang?.() === 'en' ? 'Enhance again' : '重新增强')
         : tr('smart.mediakitStart');
     const statusClass = node.mediakitError ? ' error' : String(node.mediakitStatus || '') === 'succeeded' ? ' success' : '';
-    const sourceHtml = source
-        ? smartNodeInputThumbsHtml([source], {label:tr('smart.mediakitVideoInput')})
-        : `<div class="smart-mediakit-source-empty"><i data-lucide="video"></i><span>${escapeHtml(sourceItems.length > 1 ? tr('smart.mediakitOneVideo') : tr('smart.mediakitConnectVideo'))}</span></div>`;
+    const videoLabelPrefix = window.StudioI18n?.lang?.() === 'en' ? 'Video ' : '视频';
+    const sourceHtml = sourceItems.length
+        ? smartNodeInputThumbsHtml(sourceItems, {labelPrefix:videoLabelPrefix})
+        : `<div class="smart-mediakit-source-empty"><i data-lucide="video"></i><span>${escapeHtml(tr('smart.mediakitConnectVideo'))}</span></div>`;
     const segment = (field, values, current) => `<div class="smart-mediakit-segment">${values.map(([value,label]) => `
         <button type="button" data-mediakit-field="${field}" data-mediakit-value="${value}" class="${current === value ? 'active' : ''}" ${busy ? 'disabled' : ''}>${escapeHtml(label)}</button>`).join('')}</div>`;
     return `<div class="smart-mediakit-card">
@@ -7494,7 +7533,7 @@ function smartMediaKitEnhanceBodyHtml(node, options={}){
             <span>${escapeHtml(node.mediakitError || smartMediaKitStatusText(node))}</span>
         </div>
         <div class="smart-mediakit-actions">
-            <button type="button" class="smart-mediakit-run" data-mediakit-start="1" ${busy || !source ? 'disabled' : ''}>
+            <button type="button" class="smart-mediakit-run" data-mediakit-start="1" ${busy || !sourceItems.length ? 'disabled' : ''}>
                 <i data-lucide="${busy ? 'loader-2' : 'wand-sparkles'}"></i>
                 <span>${escapeHtml(busy ? tr('smart.mediakitRunning') : startLabel)}</span>
             </button>
@@ -7504,11 +7543,13 @@ function smartMediaKitEnhanceBodyHtml(node, options={}){
 }
 function smartMediaKitResultErrorHtml(node, layout){
     const canRetry = node.mediakitStatus === 'save_failed' && node.mediakitTaskId;
+    const canRetryBatch = Boolean(node.mediakitBatchSource?.url);
     return `<div class="smart-mediakit-result-error" style="width:${layout.width}px;height:${layout.height}px">
         <i data-lucide="circle-alert"></i>
         <strong>${escapeHtml(tr('smart.mediakitResultFailed'))}</strong>
         <span>${escapeHtml(node.mediakitError || tr('smart.mediakitFailed'))}</span>
         ${canRetry ? `<button type="button" data-mediakit-result-retry="${escapeAttr(node.id)}"><i data-lucide="download"></i><span>${escapeHtml(tr('smart.mediakitRetrySave'))}</span></button>` : ''}
+        ${!canRetry && canRetryBatch ? `<button type="button" data-mediakit-batch-retry="${escapeAttr(node.id)}"><i data-lucide="refresh-cw"></i><span>${escapeHtml(window.StudioI18n?.lang?.() === 'en' ? 'Retry this video' : '重试此视频')}</span></button>` : ''}
     </div>`;
 }
 function smartMediaKitPendingBodyHtml(node, layout){
@@ -7709,6 +7750,9 @@ function createSmartMediaKitResultNode(sourceNode, options={}){
         scale:MEDIA_NODE_DEFAULT_SCALE,
         mediakitRole:'result',
         mediakitSourceNodeId:sourceNode?.id || '',
+        mediakitBatchSource:options.mediakitBatchSource ? {...options.mediakitBatchSource} : null,
+        mediakitBatchGroupId:options.mediakitBatchGroupId || '',
+        mediakitBatchParentId:options.mediakitBatchParentId || '',
         resolution:options.resolution || '720p',
         bitrateLevel:options.bitrateLevel || 'medium',
         keepSourceFps:options.keepSourceFps !== false,
@@ -7742,6 +7786,14 @@ function smartMediaKitResultNode(controller){
         .map(conn => nodes.find(node => node.id === conn.to))
         .find(node => isSmartImageNode(node) && node.mediakitTaskId === controller?.mediakitTaskId) || null;
 }
+function collectSmartMediaKitBatchResult(resultNode){
+    if(!resultNode?.mediakitBatchGroupId || resultNode.mediakitStatus !== 'succeeded' || !(resultNode.images || []).length) return false;
+    const group = nodes.find(node => node.id === resultNode.mediakitBatchGroupId && isSmartGroupNode(node));
+    if(!group) return false;
+    const collected = addNodeToSmartGroup(group, resultNode);
+    if(collected) arrangeSmartGroupMembers(group, {skipUndo:true});
+    return collected;
+}
 function applySmartMediaKitTask(controllerId, task){
     const controller = nodes.find(node => node.id === controllerId);
     if(!controller || !task) return;
@@ -7761,7 +7813,7 @@ function applySmartMediaKitTask(controllerId, task){
         resultNode.mediakitError = task.error || '';
         resultNode.running = busy;
         if(status === 'succeeded' && task.result?.url){
-            resultNode.images = [{
+            const output = {
                 url:task.result.url,
                 localUrl:task.result.url,
                 savedUrl:task.result.saved_url || task.result.url,
@@ -7769,7 +7821,10 @@ function applySmartMediaKitTask(controllerId, task){
                 kind:'video',
                 generatedResult:true,
                 mediakitTaskId:task.task_id || ''
-            }];
+            };
+            copyMediaSizeFields(task.result, output);
+            if(Number(task.result.duration) > 0) output.duration = Number(task.result.duration);
+            resultNode.images = [output];
             resultNode.pending = 0;
             resultNode.running = false;
             resultNode.title = tr('smart.mediakitResultTitle');
@@ -7803,6 +7858,11 @@ async function pollSmartMediaKitTask(controllerId, taskId){
         onUpdate:task => applySmartMediaKitTask(controllerId, task)
     }).then(task => {
         applySmartMediaKitTask(controllerId, task);
+        const resultNode = nodes.find(node => node.id === controllerId);
+        if(collectSmartMediaKitBatchResult(resultNode)){
+            render();
+            scheduleSave();
+        }
         return task;
     }).catch(error => {
         if(error?.name === 'AbortError') return null;
@@ -7826,12 +7886,103 @@ async function pollSmartMediaKitTask(controllerId, taskId){
     smartMediaKitPollers.set(key, {controller:abortController, promise});
     return promise;
 }
-async function startSmartMediaKitEnhance(nodeId){
+async function runSmartMediaKitBatch(controller, entries){
+    if(!controller || !entries?.length || !window.MediaKitClient) return null;
+    try {
+        const settingsState = await window.MediaKitClient.getSettings();
+        if(!settingsState.configured) throw new Error(tr('smart.mediakitConfigureKey'));
+    } catch(error) {
+        controller.mediakitError = window.MediaKitClient.errorMessage(error, tr('smart.mediakitFailed'));
+        controller.mediakitStatus = 'failed';
+        controller.running = false;
+        render();
+        scheduleSave();
+        return null;
+    }
+    pushUndo();
+    const rect = nodeRect(controller);
+    const group = createSmartGroupNode(rect.x + rect.width + 220, rect.y, {skipUndo:true, select:false});
+    group.title = window.StudioI18n?.lang?.() === 'en' ? 'Enhanced videos' : '画质增强结果';
+    group.mediakitBatchGroup = true;
+    controller.mediakitBatchGroupId = group.id;
+    controller.mediakitBatchItems = [];
+    controller.mediakitStatus = 'processing';
+    controller.mediakitError = '';
+    controller.running = true;
+    controller.runStartedAt = nowMs();
+    let succeeded = 0;
+    let failed = 0;
+    let index = 0;
+    for(const entry of entries){
+        index += 1;
+        const source = entry.item;
+        controller.mediakitMessage = window.StudioI18n?.lang?.() === 'en'
+            ? `Enhancing video ${index} of ${entries.length}`
+            : `正在增强第 ${index}/${entries.length} 个视频`;
+        const resultNode = createSmartMediaKitResultNode(entry.sourceNode, {
+            skipUndo:true,
+            select:false,
+            render:false,
+            status:'submitting',
+            resolution:controller.resolution,
+            bitrateLevel:controller.bitrateLevel,
+            keepSourceFps:controller.keepSourceFps,
+            fps:controller.fps,
+            mediakitBatchSource:source,
+            mediakitBatchGroupId:group.id,
+            mediakitBatchParentId:controller.id
+        });
+        resultNode.title = `${tr('smart.mediakitResultTitle')} ${index}`;
+        const batchItem = {index, sourceUrl:source.url, sourceName:source.name || `video-${index}.mp4`, resultNodeId:resultNode.id, status:'processing', error:''};
+        controller.mediakitBatchItems.push(batchItem);
+        render();
+        scheduleSave();
+        const task = await runSmartMediaKitSource(resultNode, source);
+        batchItem.taskId = task?.task_id || resultNode.mediakitTaskId || '';
+        batchItem.status = task?.status || resultNode.mediakitStatus || 'failed';
+        batchItem.error = resultNode.mediakitError || '';
+        if(batchItem.status === 'succeeded') succeeded += 1;
+        else failed += 1;
+        controller.mediakitMessage = window.StudioI18n?.lang?.() === 'en'
+            ? `${succeeded} succeeded, ${failed} failed, ${entries.length - index} remaining`
+            : `已成功 ${succeeded} 个，失败 ${failed} 个，剩余 ${entries.length - index} 个`;
+        render();
+        scheduleSave();
+        await saveCanvas();
+    }
+    controller.running = false;
+    controller.runFinishedAt = nowMs();
+    controller.runElapsedMs = Math.max(0, controller.runFinishedAt - Number(controller.runStartedAt || controller.runFinishedAt));
+    controller.mediakitStatus = failed ? (succeeded ? 'partial' : 'failed') : 'succeeded';
+    controller.mediakitMessage = window.StudioI18n?.lang?.() === 'en'
+        ? `Complete: ${succeeded} succeeded, ${failed} failed`
+        : `处理完成：成功 ${succeeded} 个，失败 ${failed} 个`;
+    controller.mediakitError = '';
+    selectedId = group.id;
+    selectedIds = [];
+    selectedImage = {nodeId:'', index:-1};
+    arrangeSmartGroupMembers(group, {skipUndo:true});
+    render();
+    scheduleSave();
+    await saveCanvas();
+    return {succeeded, failed, groupId:group.id};
+}
+async function runSmartMediaKitSource(controller, source){
+    if(!controller || !source?.url) return null;
+    return startSmartMediaKitEnhance(controller.id, {sourceOverride:source, batchChild:true});
+}
+async function startSmartMediaKitEnhance(nodeId, options={}){
     const controller = nodes.find(item => item.id === nodeId);
     if(!isSmartMediaKitControllerNode(controller) || !window.MediaKitClient) return;
-    const sources = smartMediaKitSourceItems(controller);
+    const sourceEntries = options.sourceOverride
+        ? [{sourceNode:nodes.find(item => item.id === controller.mediakitSourceNodeId) || null, item:options.sourceOverride}]
+        : smartMediaKitSourceEntries(controller);
+    if(sourceEntries.length > 1 && isSmartVideoEnhanceNode(controller) && !options.batchChild){
+        return runSmartMediaKitBatch(controller, sourceEntries);
+    }
+    const sources = sourceEntries.map(entry => entry.item);
     if(sources.length !== 1){
-        controller.mediakitError = sources.length > 1 ? tr('smart.mediakitOneVideo') : tr('smart.mediakitConnectVideo');
+        controller.mediakitError = tr('smart.mediakitConnectVideo');
         render();
         return;
     }
@@ -7918,9 +8069,17 @@ async function startSmartMediaKitEnhance(nodeId){
         resultNode.mediakitTaskId = task.task_id || '';
         applySmartMediaKitTask(controller.id, task);
         await saveCanvas();
+        let terminalTask = task;
         if(task.task_id && !window.MediaKitClient.TERMINAL_STATUSES.has(String(task.status || ''))){
-            pollSmartMediaKitTask(controller.id, task.task_id);
+            terminalTask = await pollSmartMediaKitTask(controller.id, task.task_id) || task;
         }
+        const liveResult = nodes.find(item => item.id === resultNode.id);
+        if(liveResult && collectSmartMediaKitBatchResult(liveResult)){
+            render();
+            scheduleSave();
+            await saveCanvas();
+        }
+        return terminalTask;
     } catch(error) {
         const live = nodes.find(item => item.id === nodeId);
         if(!live) return;
@@ -7937,6 +8096,7 @@ async function startSmartMediaKitEnhance(nodeId){
         render();
         scheduleSave();
         await saveCanvas();
+        return null;
     }
 }
 async function retrySmartMediaKitSave(nodeId){
@@ -8024,7 +8184,8 @@ function resumeSmartMediaKitTasks(){
         const taskId = String(node.mediakitTaskId || '');
         const result = smartMediaKitResultNode(node);
         const alreadyComplete = node.mediakitStatus === 'succeeded' && result?.images?.some(item => item?.url);
-        if(taskId && !alreadyComplete) pollSmartMediaKitTask(node.id, taskId);
+        const terminal = window.MediaKitClient.TERMINAL_STATUSES.has(String(node.mediakitStatus || ''));
+        if(taskId && !alreadyComplete && !terminal) pollSmartMediaKitTask(node.id, taskId);
     });
 }
 async function runJimengUpscale(node, index){
@@ -8253,7 +8414,10 @@ function render(){
     reusableNodes.forEach(el => keepEls.add(el));
     if(composerEl) keepEls.add(composerEl);
     [...world.childNodes].forEach(child => {
-        if(!keepEls.has(child)) child.remove();
+        if(!keepEls.has(child)){
+            pauseMediaInElement(child);
+            child.remove();
+        }
     });
     // 用户正在提示词框输入时不要移动 composer:移动 DOM 会打断输入法合成、中断输入。
     // composer 已在 keepEls 中(未被移除),不重排也不影响显示(z-index 固定)。
@@ -8266,7 +8430,10 @@ function render(){
         const reusable = reusableNodes.get(entry.node.id);
         if(reusable){
             transplantSmartMediaElements(reusable, fresh);
-            if(reusable !== fresh) reusable.remove();
+            if(reusable !== fresh){
+                pauseMediaInElement(reusable);
+                reusable.remove();
+            }
         }
     });
     restoreMediaPlaybackStates(mediaStates);
@@ -8316,6 +8483,23 @@ function render(){
     measureSmartNodeImages();
     refreshRunTimerPills();
 }
+function ensureSingleVideoNodeAspect(node, image){
+    if(!node || node.videoAspectInitialized || (node.images || []).length !== 1 || !isVideoMediaItem(image)) return false;
+    const size = mediaLayoutSize(image);
+    if(size.width <= 0 || size.height <= 0) return false;
+    const aspect = size.width / size.height;
+    const currentW = Number(node.w);
+    if(Number.isFinite(currentW) && currentW > 24){
+        node.w = Math.round(currentW);
+        node.h = Math.max(48, Math.round(currentW / aspect));
+    } else {
+        const layout = singleImageLayout(image, {type:node.type, images:node.images}, mediaNodeDefaultScale(node));
+        node.w = layout.width;
+        node.h = layout.height;
+    }
+    node.videoAspectInitialized = true;
+    return true;
+}
 function measureSmartNodeImages(){
     world.querySelectorAll('.image-node img,.image-node video').forEach(imgEl => {
         const nodeEl = imgEl.closest('.image-node');
@@ -8325,7 +8509,12 @@ function measureSmartNodeImages(){
         const index = Number(itemEl?.dataset.refImageIndex ?? itemEl?.dataset.imageIndex ?? 0);
         const node = nodes.find(n => n.id === targetNodeId);
         const image = node?.images?.[index];
+        if(imgEl.tagName?.toLowerCase() === 'video') bindSmartVideoPlaybackUi(imgEl);
         if(imgEl.tagName?.toLowerCase() === 'img' && image?.url) bindImageProxyFallback(imgEl, image);
+        if(ensureSingleVideoNodeAspect(node, image)){
+            updateNodeElementDuringResize(node);
+            scheduleSave();
+        }
         if(!node || !image || image.natural_w || image.natural_h) return;
         const isPreview = isSmartPreviewImage(imgEl);
         const originalSrc = imgEl.dataset?.originalSrc || image.url || '';
@@ -8368,6 +8557,7 @@ function measureSmartNodeImages(){
                 delete image.layout_w;
                 delete image.layout_h;
             }
+            ensureSingleVideoNodeAspect(node, image);
             applyThumbDisplaySizeToElement(itemEl, image, Math.max(itemEl?.clientWidth || 0, itemEl?.clientHeight || 0));
             updateImageResolutionBadgeElement(itemEl, image);
             if(!isSmartGroupNode(node) && (node.images || []).length === 1 && !node.w && !node.h){
@@ -8917,6 +9107,13 @@ function bindNodeEvents(){
                 retrySmartMediaKitSave(btn.dataset.mediakitResultRetry || id);
             });
         });
+        el.querySelectorAll('[data-mediakit-batch-retry]').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.preventDefault();
+                e.stopPropagation();
+                startSmartMediaKitEnhance(btn.dataset.mediakitBatchRetry || id);
+            });
+        });
         el.querySelectorAll('[data-jimeng-query]').forEach(btn => {
             btn.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); }, true);
             btn.addEventListener('click', e => {
@@ -9112,6 +9309,14 @@ function bindNodeEvents(){
             if(!node) return;
             const rect = nodeRect(node);
             resizeState = {id, startX:e.clientX, startY:e.clientY, startW:rect.width, startH:rect.height};
+            const singleVideo = (node.images || []).length === 1 && isVideoMediaItem(node.images[0]);
+            if(singleVideo){
+                const sourceSize = mediaLayoutSize(node.images[0]);
+                resizeState.lockAspect = true;
+                resizeState.aspectRatio = sourceSize.width > 0 && sourceSize.height > 0
+                    ? sourceSize.width / sourceSize.height
+                    : Math.max(0.05, rect.width / Math.max(1, rect.height));
+            }
             // 分组缩放：记录本次手势开始时所有成员的位置/尺寸快照与起始缩放，缩放过程按相对快照的比例实时计算，
             // 整体等比缩放+重排。用快照而非持久基准，移动成员后再缩放也不会回退到旧位置。
             if(isSmartGroupNode(node)){
@@ -13082,8 +13287,7 @@ function connectInputNode(fromId, toId){
     if(!from || !to || from.id === to.id) return false;
     if(isSmartVideoEnhanceNode(to)){
         const hasVideo = imagesForNode(from).some(item => item?.url && mediaKindForItem(item) === 'video');
-        const existingInputs = inputNodesFor(to).filter(item => item.id !== from.id);
-        if(!hasVideo || existingInputs.length) return false;
+        if(!hasVideo) return false;
     }
     if(isSmartVideoEnhanceNode(from) && !isSmartImageNode(to)) return false;
     if(to.type === 'smart-loop'){
@@ -16612,14 +16816,14 @@ function createNodeFromMenu(type){
 shell.addEventListener('mousedown', e => {
     if(!zoomPreviewState) return;
     if(e.button !== 0) return;
-    if(e.target.closest('.composer,.smart-back,.asset-panel,.asset-toggle,.smart-log-toggle,.smart-shortcut-toggle,.smart-workflow-toggle,.log-modal,.shortcut-modal,.image-edit-modal,.create-menu,.smart-minimap')) return;
+    if(e.target.closest('.composer,.smart-back,.asset-panel,.asset-toggle,.smart-log-toggle,.smart-shortcut-toggle,.smart-snap-toggle,.smart-workflow-toggle,.log-modal,.shortcut-modal,.image-edit-modal,.create-menu,.smart-minimap')) return;
     e.preventDefault();
     e.stopPropagation();
 }, true);
 shell.addEventListener('click', e => {
     if(!zoomPreviewState) return;
     if(e.button !== 0) return;
-    if(e.target.closest('.composer,.smart-back,.asset-panel,.asset-toggle,.smart-log-toggle,.smart-shortcut-toggle,.smart-workflow-toggle,.log-modal,.shortcut-modal,.image-edit-modal,.create-menu,.smart-minimap')) return;
+    if(e.target.closest('.composer,.smart-back,.asset-panel,.asset-toggle,.smart-log-toggle,.smart-shortcut-toggle,.smart-snap-toggle,.smart-workflow-toggle,.log-modal,.shortcut-modal,.image-edit-modal,.create-menu,.smart-minimap')) return;
     e.preventDefault();
     e.stopPropagation();
     const nodeEl = e.target.closest('.image-node');
@@ -16627,8 +16831,8 @@ shell.addEventListener('click', e => {
     else exitZoomPreview(screenToWorld(e));
 }, true);
 shell.onmousedown = e => {
-    if(zoomPreviewState && e.button === 0 && !e.target.closest('.composer,.smart-back,.asset-panel,.asset-toggle,.smart-log-toggle,.smart-shortcut-toggle,.smart-workflow-toggle,.log-modal,.shortcut-modal,.image-edit-modal,.create-menu,.smart-minimap')) return;
-    if(e.target.closest('.image-node,.composer,.smart-back,.asset-panel,.asset-toggle,.smart-log-toggle,.smart-shortcut-toggle,.smart-workflow-toggle,.log-modal,.shortcut-modal,.create-menu,.smart-minimap')) return;
+    if(zoomPreviewState && e.button === 0 && !e.target.closest('.composer,.smart-back,.asset-panel,.asset-toggle,.smart-log-toggle,.smart-shortcut-toggle,.smart-snap-toggle,.smart-workflow-toggle,.log-modal,.shortcut-modal,.image-edit-modal,.create-menu,.smart-minimap')) return;
+    if(e.target.closest('.image-node,.composer,.smart-back,.asset-panel,.asset-toggle,.smart-log-toggle,.smart-shortcut-toggle,.smart-snap-toggle,.smart-workflow-toggle,.log-modal,.shortcut-modal,.create-menu,.smart-minimap')) return;
     closeCreateMenu();
     if(e.button === 0 && e.shiftKey){
         e.preventDefault();
@@ -16669,7 +16873,7 @@ shell.oncontextmenu = e => {
         e.stopPropagation();
         return;
     }
-    if(didPan || e.target.closest('.composer,.smart-back,.asset-panel,.asset-toggle,.smart-log-toggle,.smart-shortcut-toggle,.smart-workflow-toggle,.log-modal,.shortcut-modal,.image-edit-modal,.create-menu,.smart-minimap')) return;
+    if(didPan || e.target.closest('.composer,.smart-back,.asset-panel,.asset-toggle,.smart-log-toggle,.smart-shortcut-toggle,.smart-snap-toggle,.smart-workflow-toggle,.log-modal,.shortcut-modal,.image-edit-modal,.create-menu,.smart-minimap')) return;
     if(document.getElementById('imageEditModal')?.classList.contains('open')) return;
     e.preventDefault();
     e.stopPropagation();
@@ -16820,6 +17024,27 @@ window.onmousemove = e => {
         const dy = (e.clientY - resizeState.startY) / viewport.scale;
         const minW = node.type === 'smart-prompt' ? 260 : node.type === 'smart-loop' ? 252 : node.type === 'smart-group' ? SMART_GROUP_MIN_WIDTH : 48;
         const minH = node.type === 'smart-prompt' ? 170 : node.type === 'smart-loop' ? 132 : node.type === 'smart-group' ? SMART_GROUP_MIN_HEIGHT : 48;
+        if(resizeState.lockAspect && resizeState.aspectRatio > 0){
+            const aspect = resizeState.aspectRatio;
+            const widthChange = Math.abs(dx / Math.max(1, resizeState.startW));
+            const heightChange = Math.abs(dy / Math.max(1, resizeState.startH));
+            let nextW;
+            let nextH;
+            if(widthChange >= heightChange){
+                nextW = Math.max(minW, resizeState.startW + dx);
+                nextH = nextW / aspect;
+                if(nextH < minH){ nextH = minH; nextW = nextH * aspect; }
+            } else {
+                nextH = Math.max(minH, resizeState.startH + dy);
+                nextW = nextH * aspect;
+                if(nextW < minW){ nextW = minW; nextH = nextW / aspect; }
+            }
+            node.w = Math.round(nextW);
+            node.h = Math.round(nextH);
+            node.scale = 1;
+            updateNodeElementDuringResize(node);
+            return;
+        }
         if(node.type === 'smart-group' && smartGroupImageRefs(node).some(ref => ref.item?.url)){
             // 图片分组：和普通节点一样直接改 w/h，缩略图网格按新尺寸实时重排。不要走下面的“成员缩放”那套，
             // 否则拖动过程里会按成员包围盒/缩放比例收缩，松手才回到拖动宽度（用户反馈的“变宽时先缩小”）。
@@ -16959,11 +17184,13 @@ window.onmousemove = e => {
     if(!node) return;
     const moveDx = (e.clientX - dragState.startX) / viewport.scale;
     const moveDy = (e.clientY - dragState.startY) / viewport.scale;
+    const snappedDx = snapSmartCoordinate(dragState.ox + moveDx) - dragState.ox;
+    const snappedDy = snapSmartCoordinate(dragState.oy + moveDy) - dragState.oy;
     (dragState.group || [{id:dragState.id, ox:dragState.ox, oy:dragState.oy}]).forEach(item => {
         const n = nodes.find(x => x.id === item.id);
         if(!n) return;
-        n.x = item.ox + moveDx;
-        n.y = item.oy + moveDy;
+        n.x = item.ox + snappedDx;
+        n.y = item.oy + snappedDy;
     });
     if(assetLibraryOpen){
         const hit = document.elementFromPoint(e.clientX, e.clientY);
@@ -17176,7 +17403,7 @@ window.onmouseup = e => {
     }
 };
 shell.addEventListener('wheel', e => {
-    if(e.target.closest('.composer,.smart-back,.image-edit-modal,.asset-panel,.asset-toggle,.smart-log-toggle,.smart-shortcut-toggle,.smart-workflow-toggle,.workflow-transfer-panel,.log-modal,.shortcut-modal,.prompt-node-segments,.prompt-node-text,.prompt-node-llm,.smart-group-list,[data-thumb-scroll]')) return;
+    if(e.target.closest('.composer,.smart-back,.image-edit-modal,.asset-panel,.asset-toggle,.smart-log-toggle,.smart-shortcut-toggle,.smart-snap-toggle,.smart-workflow-toggle,.workflow-transfer-panel,.log-modal,.shortcut-modal,.prompt-node-segments,.prompt-node-text,.prompt-node-llm,.smart-group-list,[data-thumb-scroll]')) return;
     e.preventDefault();
     const rect = shell.getBoundingClientRect();
     const sx = e.clientX - rect.left;
@@ -17367,6 +17594,14 @@ fileInput.onchange = () => {
 };
 if(assetToggle) assetToggle.onclick = () => toggleAssetLibrary();
 if(assetCloseBtn) assetCloseBtn.onclick = () => toggleAssetLibrary(false);
+if(smartSnapToggle) smartSnapToggle.onclick = event => {
+    event.preventDefault();
+    event.stopPropagation();
+    smartSnapEnabled = !smartSnapEnabled;
+    try { localStorage.setItem(SMART_SNAP_KEY, smartSnapEnabled ? '1' : '0'); } catch(e) {}
+    updateSmartSnapToggle();
+    toast(smartSnapEnabled ? '已开启网格吸附' : '已关闭网格吸附');
+};
 if(smartWorkflowToggle) smartWorkflowToggle.onclick = event => {
     event.preventDefault();
     event.stopPropagation();

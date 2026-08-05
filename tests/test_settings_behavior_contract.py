@@ -60,6 +60,22 @@ class SettingsBehaviorContractTests(unittest.TestCase):
         self.assertIn("open_directory(kind)", index)
         self.assertNotIn("open_directory(path)", index)
 
+    def test_updates_use_full_installer_from_project_release(self):
+        main = read("main.py")
+        desktop = read("desktop_app.py")
+        settings = read("static/js/settings.js")
+        self.assertIn("wwfoliage/InfiniteCanvas-Desktop", main)
+        self.assertIn("install_update", desktop)
+        self.assertIn("install-update", settings)
+        self.assertNotIn("/api/update-from-github", settings)
+
+    def test_settings_can_choose_storage_and_cache_locations(self):
+        html = read("static/settings.html")
+        source = read("static/js/settings.js")
+        self.assertIn('data-choose-directory="data"', html)
+        self.assertIn('data-choose-directory="cache"', html)
+        self.assertIn("choose-directory", source)
+
 
 if __name__ == "__main__":
     unittest.main()

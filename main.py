@@ -179,10 +179,11 @@ class ConnectionManager:
 manager = ConnectionManager()
 GLOBAL_LOOP = None
 APP_VERSION = "2026.06.03"
-GITHUB_REPO_URL = "https://github.com/hero8152/Infinite-Canvas"
-GITHUB_VERSION_URL = "https://raw.githubusercontent.com/hero8152/Infinite-Canvas/main/VERSION"
-GITHUB_TREE_URL = "https://api.github.com/repos/hero8152/Infinite-Canvas/git/trees/main?recursive=1"
-GITHUB_RAW_ROOT = "https://raw.githubusercontent.com/hero8152/Infinite-Canvas/main"
+GITHUB_REPO_URL = "https://github.com/wwfoliage/InfiniteCanvas-Desktop"
+GITHUB_VERSION_URL = "https://raw.githubusercontent.com/wwfoliage/InfiniteCanvas-Desktop/main/VERSION"
+GITHUB_TREE_URL = "https://api.github.com/repos/wwfoliage/InfiniteCanvas-Desktop/git/trees/main?recursive=1"
+GITHUB_RELEASE_LATEST_URL = "https://api.github.com/repos/wwfoliage/InfiniteCanvas-Desktop/releases/latest"
+GITHUB_RAW_ROOT = "https://raw.githubusercontent.com/wwfoliage/InfiniteCanvas-Desktop/main"
 GITHUB_UPDATE_NOTES_URL = GITHUB_RAW_ROOT + "/static/update-notes.json"
 MODELSCOPE_REPO_URL = "https://modelscope.ai/studios/daniel8152/Infinite-Canvas"
 MODELSCOPE_RAW_ROOT = "https://www.modelscope.ai/studios/daniel8152/Infinite-Canvas/raw/main"
@@ -2039,32 +2040,61 @@ def version_gt(a: str, b: str) -> bool:
     tb += [0] * (n - len(tb))
     return ta > tb
 
+
+def fetch_github_release(timeout: float = 6.0) -> Dict[str, Any]:
+    info: Dict[str, Any] = {
+        "source": "github",
+        "version": "",
+        "installer_url": "",
+        "release_url": GITHUB_REPO_URL + "/releases/latest",
+        "ok": False,
+        "error": "",
+    }
+    try:
+        response = requests.get(
+            GITHUB_RELEASE_LATEST_URL,
+            headers={"Accept": "application/vnd.github+json", "User-Agent": "InfiniteCanvas-Desktop-Updater"},
+            timeout=timeout,
+            proxies=urllib.request.getproxies() or None,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        version = str(payload.get("tag_name") or payload.get("name") or "").strip().lstrip("vV")
+        assets = payload.get("assets") if isinstance(payload.get("assets"), list) else []
+        installer = next((
+            asset for asset in assets
+            if isinstance(asset, dict)
+            and str(asset.get("name") or "").lower().endswith(".exe")
+            and str(asset.get("browser_download_url") or "").startswith(
+                "https://github.com/wwfoliage/InfiniteCanvas-Desktop/releases/download/"
+            )
+        ), None)
+        info.update({
+            "ok": bool(version),
+            "version": version,
+            "installer_url": str((installer or {}).get("browser_download_url") or ""),
+            "installer_name": str((installer or {}).get("name") or ""),
+            "release_url": str(payload.get("html_url") or info["release_url"]),
+        })
+        if not version:
+            info["error"] = "GitHub Release 未提供版本号"
+        elif not installer:
+            info["error"] = "该版本还没有 Windows 安装包"
+    except (requests.RequestException, ValueError) as exc:
+        info["error"] = str(exc)
+    return info
+
 @app.get("/api/check-update")
 def check_update():
-    """服务端检测 GitHub 与 ModelScope 两个源的远端版本（走系统代理，避免浏览器跨域/被墙）。"""
+    """Check the signed-off GitHub Release used by the desktop installer flow."""
     current = current_app_version()
-    # 并发检测两个源，避免串行 8s+8s 拖慢首屏更新提示
-    holder: Dict[str, Dict[str, Any]] = {}
-    def _probe(key: str, url: str):
-        item = fetch_remote_version(url, timeout=5.0)
-        item["source"] = key
-        holder[key] = item
-    threads = [
-        Thread(target=_probe, args=("github", GITHUB_VERSION_URL), daemon=True),
-        Thread(target=_probe, args=("modelscope", MODELSCOPE_VERSION_URL), daemon=True),
-    ]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join(timeout=5.5)
-    github = holder.get("github") or {"version": "", "ok": False, "error": "检测超时（超过 5s）", "url": GITHUB_VERSION_URL, "source": "github"}
-    modelscope = holder.get("modelscope") or {"version": "", "ok": False, "error": "检测超时（超过 5s）", "url": MODELSCOPE_VERSION_URL, "source": "modelscope"}
-    best: Dict[str, Any] = {}
-    for item in (github, modelscope):
-        if item["ok"] and item["version"]:
-            if not best or version_gt(item["version"], best["version"]):
-                best = {"source": item["source"], "version": item["version"]}
-    update_available = bool(best and version_gt(best["version"], current))
+    github = fetch_github_release()
+    best: Dict[str, Any] = dict(github) if github.get("ok") else {}
+    update_available = bool(
+        best
+        and best.get("installer_url")
+        and version_gt(str(best.get("version") or ""), current)
+    )
     notes_by_source: Dict[str, Any] = {}
     if best and best.get("version"):
         best_notes, notes_by_source = fetch_update_notes_with_fallback(str(best.get("source") or "github"), best["version"], timeout=3.0)
@@ -2072,12 +2102,13 @@ def check_update():
     return {
         "current": current,
         "github": github,
-        "modelscope": modelscope,
+        "modelscope": {"ok": False, "version": "", "source": "modelscope", "error": "安装包更新仅使用 GitHub Release"},
+        "best": best,
         "latest": best,
         "update_notes": best.get("update_notes") if best else {},
         "update_notes_sources": notes_by_source,
         "update_available": update_available,
-        "reachable": bool(github["ok"] or modelscope["ok"]),
+        "reachable": bool(github.get("ok")),
     }
 
 def update_allowed_file(path: str) -> bool:
@@ -12679,7 +12710,12 @@ def save_download_blob(
 
 @app.get("/api/storage-report")
 def get_storage_report():
-    return storage_report(APP_PATHS, APP_SETTINGS.load())
+    report = storage_report(APP_PATHS, APP_SETTINGS.load())
+    report["roots"] = {
+        "data": str(APP_PATHS.data_dir),
+        "cache": str(APP_PATHS.media_preview_dir),
+    }
+    return report
 
 
 @app.get("/api/cache-cleanup-preview")

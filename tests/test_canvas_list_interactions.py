@@ -15,6 +15,7 @@ class CanvasListInteractionTests(unittest.TestCase):
     def setUpClass(cls):
         cls.source = (ROOT / "static/js/canvas-list.js").read_text(encoding="utf-8")
         cls.compact = compact(cls.source)
+        cls.html = (ROOT / "static/canvas-list.html").read_text(encoding="utf-8")
 
     def test_client_coordinates_account_for_rendered_board_scale(self):
         for token in (
@@ -63,6 +64,20 @@ class CanvasListInteractionTests(unittest.TestCase):
             "createCanvasOnBoard(input.value.trim(), createKind, placement)",
         ):
             self.assertIn(compact(token), self.compact)
+
+    def test_grid_snap_toggle_is_before_reset_view_and_remembered(self):
+        self.assertLess(self.html.index('id="boardSnapToggle"'), self.html.index('id="boardResetView"'))
+        for token in (
+            "canvas_list_grid_snap",
+            "function snapBoardCoordinate(value)",
+            "localStorage.setItem(CANVAS_LIST_SNAP_KEY",
+        ):
+            self.assertIn(compact(token), self.compact)
+
+    def test_empty_board_uses_double_click_instruction_without_create_button(self):
+        self.assertIn("双击空白处为当前项目创建第一块画布", self.html)
+        self.assertNotIn('id="emptyCreateCanvasBtn"', self.html)
+        self.assertNotIn("emptyCreateCanvasBtn", self.source)
 
 
 if __name__ == "__main__":

@@ -14,7 +14,10 @@
     <script>
         (function(){
             try {
-                var theme = localStorage.getItem('studio_theme') || localStorage.getItem('canvas_theme') || 'system';
+                var cached = JSON.parse(localStorage.getItem('studio_app_settings_cache') || 'null');
+                var theme = cached && cached.appearance && cached.appearance.theme
+                    ? cached.appearance.theme
+                    : (localStorage.getItem('studio_theme') || localStorage.getItem('canvas_theme') || 'system');
                 var dark = theme === 'dark' || (theme === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
                 if(dark) {
                     document.documentElement.classList.add('studio-theme-dark');
@@ -1897,12 +1900,14 @@
         window.addEventListener('message', async event => {
             if (event.origin && event.origin !== location.origin) return;
             if(event.data?.type === 'settings-native-request') {
-                const {id, action, kind} = event.data;
+                const {id, action, kind, payload={}} = event.data;
                 let result = {ok:false, error_code:'desktop_api_unavailable'};
                 try {
                     if(window.pywebview?.api) {
                         if(action === 'choose-download-directory') result = await window.pywebview.api.choose_download_directory();
+                        if(action === 'choose-directory') result = await window.pywebview.api.choose_directory(kind);
                         if(action === 'open-directory') result = await window.pywebview.api.open_directory(kind);
+                        if(action === 'install-update') result = await window.pywebview.api.install_update(payload.url || '', payload.version || '');
                     }
                 } catch(error) {
                     result = {ok:false, error_code:'desktop_api_failed', message:String(error?.message || error)};
@@ -1930,7 +1935,38 @@
             studioApiChannel.onmessage = event => forwardStudioApiChange(event.data);
         } catch(e) {}
 
-        function restoreActivePage() {
+        async function bootstrapAppPreferences() {
+            let cached = null;
+            try { cached = JSON.parse(localStorage.getItem('studio_app_settings_cache') || 'null'); } catch(e) {}
+            let settings = cached;
+            const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+            const timeout = setTimeout(() => controller?.abort?.(), 1800);
+            try {
+                const response = await fetch('/api/app-settings', {cache:'no-store', signal:controller?.signal});
+                if(response.ok) settings = await response.json();
+            } catch(e) {
+                // Cached preferences still prevent the system theme from flashing over an explicit app theme.
+            } finally {
+                clearTimeout(timeout);
+            }
+            if(!settings) return;
+            try { localStorage.setItem('studio_app_settings_cache', JSON.stringify(settings)); } catch(e) {}
+            const theme = settings.appearance?.theme || 'system';
+            const scale = settings.appearance?.scale || 'auto';
+            const language = settings.language || 'zh';
+            try {
+                localStorage.setItem('studio_theme', theme);
+                localStorage.setItem('canvas_theme', theme);
+                localStorage.setItem('studio_ui_scale_mode', scale);
+                localStorage.setItem('studio_lang', language);
+            } catch(e) {}
+            window.StudioTheme?.set?.(theme);
+            window.StudioScale?.set?.(scale);
+            window.StudioI18n?.set?.(language);
+        }
+
+        async function restoreActivePage() {
+            await bootstrapAppPreferences();
             restoreSidebarPinned();
             const id = PAGE_IDS.includes(localStorage.getItem(ACTIVE_PAGE_KEY)) ? localStorage.getItem(ACTIVE_PAGE_KEY) : DEFAULT_PAGE_ID;
             restoreLocalNav(id);

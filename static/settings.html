@@ -127,6 +127,16 @@
 
             <section class="settings-panel" data-settings-panel="storage" aria-labelledby="settings-storage-title">
                 <header class="panel-head"><div><span class="panel-kicker" data-l10n="diskUsage">磁盘占用</span><h1 id="settings-storage-title" data-l10n="storage">存储与缓存</h1></div><button class="icon-command" type="button" id="refreshStorage" title="刷新" data-l10n-title="refresh"><i data-lucide="refresh-cw"></i></button></header>
+                <div class="setting-group divided">
+                    <div class="setting-row setting-row-stack-mobile">
+                        <div class="setting-copy"><strong data-l10n="storageDirectory">存储目录</strong><span data-l10n="storageDirectoryHint">项目、素材、工作流、API 配置和日志</span></div>
+                        <div class="directory-control"><output id="storageDirectory" title=""></output><button class="icon-command" type="button" data-choose-directory="data" title="更改目录" data-l10n-title="changeDirectory"><i data-lucide="folder-search"></i></button></div>
+                    </div>
+                    <div class="setting-row setting-row-stack-mobile">
+                        <div class="setting-copy"><strong data-l10n="cacheDirectory">缓存目录</strong><span data-l10n="cacheDirectoryHint">视频封面和媒体预览缓存，可随时重建</span></div>
+                        <div class="directory-control"><output id="cacheDirectory" title=""></output><button class="icon-command" type="button" data-choose-directory="cache" title="更改目录" data-l10n-title="changeDirectory"><i data-lucide="folder-search"></i></button></div>
+                    </div>
+                </div>
                 <div class="storage-list" id="storageList" aria-live="polite"></div>
                 <div class="setting-group cache-group">
                     <div class="setting-row setting-row-stack-mobile">
