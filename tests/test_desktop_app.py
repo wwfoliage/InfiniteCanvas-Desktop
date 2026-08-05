@@ -172,7 +172,7 @@ class DesktopAppTests(unittest.TestCase):
             opener.assert_called_once_with(str(paths.assets_dir.resolve()))
 
     @patch("desktop_app.save_path_overrides")
-    def test_desktop_api_selects_storage_and_cache_directories(self, save_overrides):
+    def test_desktop_api_selects_independent_data_directories(self, save_overrides):
         from app_paths import resolve_app_paths
         from app_settings import AppSettingsStore
         from desktop_app import DesktopApi
@@ -180,24 +180,62 @@ class DesktopAppTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             paths = resolve_app_paths(resource_dir=root / "bundle", data_dir=root / "data", frozen=True)
-            paths.data_dir.mkdir(parents=True)
-            (paths.data_dir / "keep.txt").write_text("keep", encoding="utf-8")
-            chosen = root / "chosen"
+            paths.runtime_data_dir.mkdir(parents=True)
+            paths.assets_dir.mkdir(parents=True)
+            paths.media_preview_dir.mkdir(parents=True)
+            paths.logs_dir.mkdir(parents=True)
+            (paths.runtime_data_dir / "project.json").write_text("project", encoding="utf-8")
+            (paths.assets_dir / "asset.png").write_bytes(b"asset")
+            (paths.media_preview_dir / "preview.webp").write_bytes(b"preview")
+            (paths.logs_dir / "desktop.log").write_text("log", encoding="utf-8")
+            chosen = {kind: root / kind for kind in ("projects", "assets", "cache", "logs")}
+            for directory in chosen.values():
+                directory.mkdir()
+            window = MagicMock()
+            window.create_file_dialog.side_effect = [
+                (str(chosen[kind]),) for kind in ("projects", "assets", "cache", "logs")
+            ]
+            api = DesktopApi(paths, AppSettingsStore(paths.app_settings_file), folder_dialog_type="folder")
+            api.set_window(window)
+
+            results = {kind: api.choose_directory(kind) for kind in ("projects", "assets", "cache", "logs")}
+
+            self.assertTrue(all(result["ok"] for result in results.values()))
+            self.assertTrue(all(result["restart_required"] for result in results.values()))
+            self.assertEqual((chosen["projects"] / "project.json").read_text(encoding="utf-8"), "project")
+            self.assertEqual((chosen["assets"] / "asset.png").read_bytes(), b"asset")
+            self.assertEqual((chosen["cache"] / "preview.webp").read_bytes(), b"preview")
+            self.assertEqual((chosen["logs"] / "desktop.log").read_text(encoding="utf-8"), "log")
+            save_overrides.assert_any_call({"projects_dir": str(chosen["projects"].resolve())})
+            save_overrides.assert_any_call({"assets_dir": str(chosen["assets"].resolve())})
+            save_overrides.assert_any_call({"cache_dir": str(chosen["cache"].resolve())})
+            save_overrides.assert_any_call({"logs_dir": str(chosen["logs"].resolve())})
+
+    @patch("desktop_app.save_path_overrides")
+    def test_project_directory_migration_does_not_copy_webview_profile(self, save_overrides):
+        from app_paths import resolve_app_paths
+        from app_settings import AppSettingsStore
+        from desktop_app import DesktopApi
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            paths = resolve_app_paths(resource_dir=root / "bundle", data_dir=root / "data", frozen=True)
+            paths.runtime_data_dir.mkdir(parents=True)
+            paths.webview_data_dir.mkdir(parents=True)
+            (paths.runtime_data_dir / "project.json").write_text("project", encoding="utf-8")
+            (paths.webview_data_dir / "Cookies").write_bytes(b"locked-profile")
+            chosen = root / "projects"
             chosen.mkdir()
             window = MagicMock()
             window.create_file_dialog.return_value = (str(chosen),)
             api = DesktopApi(paths, AppSettingsStore(paths.app_settings_file), folder_dialog_type="folder")
             api.set_window(window)
 
-            storage = api.choose_directory("data")
-            cache = api.choose_directory("cache")
+            result = api.choose_directory("projects")
 
-            self.assertTrue(storage["ok"])
-            self.assertTrue(storage["restart_required"])
-            self.assertEqual((chosen / "keep.txt").read_text(encoding="utf-8"), "keep")
-            self.assertTrue(cache["ok"])
-            save_overrides.assert_any_call({"data_dir": str(chosen.resolve())})
-            save_overrides.assert_any_call({"cache_dir": str(chosen.resolve())})
+            self.assertTrue(result["ok"])
+            self.assertTrue((chosen / "project.json").is_file())
+            self.assertFalse((chosen / "webview").exists())
 
     def test_desktop_api_rejects_untrusted_update_installer(self):
         from app_paths import resolve_app_paths

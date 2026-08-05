@@ -58,6 +58,11 @@ class InstallerDefinitionTests(unittest.TestCase):
         self.assertIn("UsePreviousAppDir=no", script)
         self.assertIn("#ifndef SmokeTestRoot", script)
 
+    def test_silent_install_does_not_block_on_webview_notice(self):
+        script = INSTALLER_SCRIPT.read_text(encoding="utf-8-sig")
+
+        self.assertIn("(not WizardSilent()) and (not HasWebView2Runtime)", script)
+
     def test_upgrade_smoke_script_covers_clean_install_and_legacy_residue(self):
         script = INSTALLER_SMOKE_SCRIPT.read_text(encoding="utf-8-sig")
 

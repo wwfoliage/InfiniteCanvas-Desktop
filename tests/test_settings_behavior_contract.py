@@ -76,11 +76,12 @@ class SettingsBehaviorContractTests(unittest.TestCase):
         self.assertIn("install-update", settings)
         self.assertNotIn("/api/update-from-github", settings)
 
-    def test_settings_can_choose_storage_and_cache_locations(self):
-        html = read("static/settings.html")
+    def test_settings_can_choose_all_reported_storage_locations(self):
         source = read("static/js/settings.js")
-        self.assertIn('data-choose-directory="data"', html)
-        self.assertIn('data-choose-directory="cache"', html)
+        for kind in ("projects", "assets", "cache", "logs", "downloads"):
+            self.assertIn(kind, source)
+        self.assertIn('data-choose-directory="${escapeHtml(entry.kind)}"', source)
+        self.assertIn('data-open-directory="${escapeHtml(entry.kind)}"', source)
         self.assertIn("choose-directory", source)
 
 

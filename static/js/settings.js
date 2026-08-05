@@ -184,8 +184,10 @@
         const result = await requestNative('choose-directory', kind);
         if(result?.cancelled) return;
         if(!result?.ok){ showStatus(nativeFailureMessage(result, t('chooseFailed')), true); return; }
-        showStatus(result.restart_required ? t('restartRequired') : t('saved'));
         await refreshStorage();
+        const path = document.querySelector(`[data-storage-kind="${kind}"] .storage-row-copy span`);
+        if(path && result.directory){ path.textContent = result.directory; path.title = result.directory; }
+        showStatus(result.restart_required ? t('restartRequired') : t('saved'));
     }
     function formatBytes(value){
         const bytes = Math.max(0, Number(value) || 0);
@@ -199,16 +201,13 @@
         list.innerHTML = `<div class="storage-row"><div></div><div class="storage-row-copy"><span>${escapeHtml(t('loading'))}</span></div></div>`;
         try {
             const report = await requestJson('/api/storage-report');
-            const storageOutput = document.getElementById('storageDirectory');
-            const cacheOutput = document.getElementById('cacheDirectory');
-            if(storageOutput){ storageOutput.textContent = report.roots?.data || ''; storageOutput.title = report.roots?.data || ''; }
-            if(cacheOutput){ cacheOutput.textContent = report.roots?.cache || ''; cacheOutput.title = report.roots?.cache || ''; }
             list.innerHTML = report.entries.map(entry => `
-                <div class="storage-row">
+                <div class="storage-row" data-storage-kind="${escapeHtml(entry.kind)}">
                     <i data-lucide="${storageIcons[entry.kind] || 'folder'}"></i>
                     <div class="storage-row-copy"><strong>${escapeHtml(t(storageLabels[entry.kind] || entry.kind))}</strong><span title="${escapeHtml(entry.path)}">${escapeHtml(entry.path)}</span></div>
                     <span class="storage-size">${formatBytes(entry.bytes)}</span>
-                    <button class="icon-command" type="button" data-open-directory="${escapeHtml(entry.kind === 'projects' ? 'data' : entry.kind)}" title="${escapeHtml(t('openFolder'))}"><i data-lucide="folder-open"></i></button>
+                    <button class="icon-command" type="button" data-choose-directory="${escapeHtml(entry.kind)}" title="${escapeHtml(t('changeDirectory'))}"><i data-lucide="folder-search"></i></button>
+                    <button class="icon-command" type="button" data-open-directory="${escapeHtml(entry.kind)}" title="${escapeHtml(t('openFolder'))}"><i data-lucide="folder-open"></i></button>
                 </div>`).join('');
             const preview = await requestJson('/api/cache-cleanup-preview');
             document.getElementById('cacheSize').textContent = formatBytes(preview.bytes);

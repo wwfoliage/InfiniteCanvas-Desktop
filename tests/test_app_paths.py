@@ -44,11 +44,27 @@ class AppPathsTests(unittest.TestCase):
             )
 
     def test_explicit_data_directory_has_priority(self):
-        from app_paths import resolve_app_paths
+        from app_paths import resolve_app_paths, save_path_overrides
 
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            with patch.dict(os.environ, {"INFINITE_CANVAS_DATA_DIR": str(root / "ignored")}, clear=False):
+            local = root / "Local"
+            with patch.dict(
+                os.environ,
+                {
+                    "LOCALAPPDATA": str(local),
+                    "INFINITE_CANVAS_DATA_DIR": str(root / "ignored"),
+                },
+                clear=False,
+            ):
+                save_path_overrides(
+                    {
+                        "projects_dir": str(root / "stored-projects"),
+                        "assets_dir": str(root / "stored-assets"),
+                        "cache_dir": str(root / "stored-cache"),
+                        "logs_dir": str(root / "stored-logs"),
+                    }
+                )
                 paths = resolve_app_paths(
                     resource_dir=root / "bundle",
                     data_dir=root / "explicit",
@@ -56,6 +72,10 @@ class AppPathsTests(unittest.TestCase):
                 )
 
             self.assertEqual(paths.data_dir, root / "explicit")
+            self.assertEqual(paths.runtime_data_dir, root / "explicit" / "data")
+            self.assertEqual(paths.assets_dir, root / "explicit" / "assets")
+            self.assertEqual(paths.media_preview_dir, root / "explicit" / "data" / "media_previews")
+            self.assertEqual(paths.logs_dir, root / "explicit" / "logs")
 
     def test_frozen_mode_reads_resources_from_pyinstaller_bundle(self):
         from app_paths import resolve_app_paths
@@ -88,20 +108,48 @@ class AppPathsTests(unittest.TestCase):
             self.assertTrue(paths.logs_dir.is_dir())
             self.assertTrue(paths.download_temp_dir.is_dir())
 
-    def test_packaged_mode_applies_persisted_data_and_cache_overrides(self):
+    def test_packaged_mode_applies_independent_directory_overrides(self):
         from app_paths import resolve_app_paths, save_path_overrides
 
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             local = root / "Local"
-            data = root / "RelocatedData"
+            projects = root / "Projects"
+            assets = root / "Assets"
             cache = root / "RelocatedCache"
+            logs = root / "Logs"
             with patch.dict(os.environ, {"LOCALAPPDATA": str(local)}, clear=False):
-                save_path_overrides({"data_dir": str(data), "cache_dir": str(cache)})
+                save_path_overrides(
+                    {
+                        "projects_dir": str(projects),
+                        "assets_dir": str(assets),
+                        "cache_dir": str(cache),
+                        "logs_dir": str(logs),
+                    }
+                )
                 paths = resolve_app_paths(resource_dir=root / "bundle", frozen=True)
 
-            self.assertEqual(paths.data_dir, data.resolve())
+            self.assertEqual(paths.data_dir, local / "InfiniteCanvas")
+            self.assertEqual(paths.runtime_data_dir, projects.resolve())
+            self.assertEqual(paths.assets_dir, assets.resolve())
             self.assertEqual(paths.media_preview_dir, cache.resolve())
+            self.assertEqual(paths.logs_dir, logs.resolve())
+            self.assertEqual(paths.webview_data_dir, local / "InfiniteCanvas" / "webview")
+
+    def test_moving_projects_does_not_move_default_webview_or_cache(self):
+        from app_paths import resolve_app_paths, save_path_overrides
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            local = root / "Local"
+            projects = root / "Projects"
+            with patch.dict(os.environ, {"LOCALAPPDATA": str(local)}, clear=False):
+                save_path_overrides({"projects_dir": str(projects)})
+                paths = resolve_app_paths(resource_dir=root / "bundle", frozen=True)
+
+            self.assertEqual(paths.runtime_data_dir, projects.resolve())
+            self.assertEqual(paths.media_preview_dir, local / "InfiniteCanvas" / "data" / "media_previews")
+            self.assertEqual(paths.webview_data_dir, local / "InfiniteCanvas" / "webview")
 
 
 if __name__ == "__main__":

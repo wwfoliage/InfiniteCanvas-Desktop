@@ -23,7 +23,6 @@ import uvicorn
 
 from app_paths import (
     ensure_user_directories,
-    load_path_overrides,
     resolve_app_paths,
     save_path_overrides,
 )
@@ -128,7 +127,13 @@ class UvicornRuntime:
 
 
 class DesktopApi:
-    ALLOWED_DIRECTORY_KINDS = {"downloads", "data", "assets", "cache", "logs"}
+    ALLOWED_DIRECTORY_KINDS = {"downloads", "data", "projects", "assets", "cache", "logs"}
+    DIRECTORY_OVERRIDE_KEYS = {
+        "projects": "projects_dir",
+        "assets": "assets_dir",
+        "cache": "cache_dir",
+        "logs": "logs_dir",
+    }
 
     def __init__(
         self,
@@ -142,6 +147,7 @@ class DesktopApi:
         self.folder_dialog_type = folder_dialog_type
         self.opener = opener or getattr(os, "startfile", None)
         self.window: Any = None
+        self.selected_directories: dict[str, Path] = {}
 
     def set_window(self, window: Any) -> None:
         self.window = window
@@ -153,15 +159,19 @@ class DesktopApi:
         if kind == "downloads":
             configured = str(self.settings_store.load()["downloads"].get("directory") or "")
             return Path(configured) if configured else default_download_directory()
-        overrides = load_path_overrides()
-        data_root = Path(overrides.get("data_dir") or self.paths.data_dir)
-        if kind == "data":
-            return data_root
+        canonical_kind = "projects" if kind == "data" else kind
+        if canonical_kind in self.selected_directories:
+            return self.selected_directories[canonical_kind]
+        return self._active_directory_for_kind(canonical_kind)
+
+    def _active_directory_for_kind(self, kind: str) -> Path | None:
+        if kind in {"data", "projects"}:
+            return self.paths.runtime_data_dir
         if kind == "assets":
-            return data_root / "assets"
+            return self.paths.assets_dir
         if kind == "cache":
-            return Path(overrides.get("cache_dir") or self.paths.media_preview_dir)
-        return data_root / "logs"
+            return self.paths.media_preview_dir
+        return self.paths.logs_dir
 
     def _choose_directory(self, current: Path | None) -> Path | None:
         if self.window is None or self.folder_dialog_type is None:
@@ -217,7 +227,9 @@ class DesktopApi:
         LOGGER.info("Choose directory requested: kind=%s", kind)
         if kind == "downloads":
             return self.choose_download_directory()
-        if kind not in {"data", "cache"}:
+        if kind == "data":
+            kind = "projects"
+        if kind not in self.DIRECTORY_OVERRIDE_KEYS:
             return {"ok": False, "error_code": "directory_not_configurable"}
         if self.window is None or self.folder_dialog_type is None:
             return {"ok": False, "error_code": "desktop_dialog_unavailable"}
@@ -233,22 +245,26 @@ class DesktopApi:
             LOGGER.info("Choose directory cancelled: kind=%s", kind)
             return {"ok": False, "cancelled": True}
         try:
-            if kind == "data":
-                source = self.paths.data_dir.expanduser().resolve()
-                if directory != source:
-                    try:
-                        if directory.is_relative_to(source) or source.is_relative_to(directory):
-                            return {"ok": False, "error_code": "overlapping_directory"}
-                    except AttributeError:
-                        source_text = str(source).casefold().rstrip("\\/")
-                        target_text = str(directory).casefold().rstrip("\\/")
-                        if source_text.startswith(target_text + os.sep) or target_text.startswith(source_text + os.sep):
-                            return {"ok": False, "error_code": "overlapping_directory"}
-                    shutil.copytree(source, directory, dirs_exist_ok=True)
-                save_path_overrides({"data_dir": str(directory)})
-            else:
-                directory.mkdir(parents=True, exist_ok=True)
-                save_path_overrides({"cache_dir": str(directory)})
+            source = self._active_directory_for_kind(kind)
+            if source is None:
+                return {"ok": False, "error_code": "directory_not_configurable"}
+            source = source.expanduser().resolve()
+            if directory != source:
+                try:
+                    if directory.is_relative_to(source) or source.is_relative_to(directory):
+                        return {"ok": False, "error_code": "overlapping_directory"}
+                except AttributeError:
+                    source_text = str(source).casefold().rstrip("\\/")
+                    target_text = str(directory).casefold().rstrip("\\/")
+                    if source_text.startswith(target_text + os.sep) or target_text.startswith(source_text + os.sep):
+                        return {"ok": False, "error_code": "overlapping_directory"}
+                if source.is_dir():
+                    ignored = shutil.ignore_patterns("media_previews", "download_temp") if kind == "projects" else None
+                    shutil.copytree(source, directory, dirs_exist_ok=True, ignore=ignored)
+                else:
+                    directory.mkdir(parents=True, exist_ok=True)
+            save_path_overrides({self.DIRECTORY_OVERRIDE_KEYS[kind]: str(directory)})
+            self.selected_directories[kind] = directory
             LOGGER.info("Choose directory succeeded: kind=%s directory=%s", kind, directory)
             return {
                 "ok": True,
@@ -256,7 +272,7 @@ class DesktopApi:
                 "directory": str(directory),
                 "restart_required": True,
             }
-        except OSError as exc:
+        except (OSError, shutil.Error) as exc:
             LOGGER.exception("Could not relocate %s directory", kind)
             return {"ok": False, "error_code": "directory_migration_failed", "message": str(exc)}
 

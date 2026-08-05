@@ -11,7 +11,10 @@ from pathlib import Path
 class AppPaths:
     resource_dir: Path
     data_dir: Path
-    cache_dir: Path | None = None
+    projects_root: Path | None = None
+    assets_root: Path | None = None
+    cache_root: Path | None = None
+    logs_root: Path | None = None
 
     @property
     def static_dir(self) -> Path:
@@ -39,7 +42,7 @@ class AppPaths:
 
     @property
     def assets_dir(self) -> Path:
-        return self.data_dir / "assets"
+        return self.assets_root or (self.data_dir / "assets")
 
     @property
     def asset_input_dir(self) -> Path:
@@ -67,7 +70,7 @@ class AppPaths:
 
     @property
     def runtime_data_dir(self) -> Path:
-        return self.data_dir / "data"
+        return self.projects_root or (self.data_dir / "data")
 
     @property
     def conversation_dir(self) -> Path:
@@ -79,7 +82,7 @@ class AppPaths:
 
     @property
     def media_preview_dir(self) -> Path:
-        return self.cache_dir or (self.runtime_data_dir / "media_previews")
+        return self.cache_root or (self.data_dir / "data" / "media_previews")
 
     @property
     def asset_library_file(self) -> Path:
@@ -139,7 +142,7 @@ class AppPaths:
 
     @property
     def logs_dir(self) -> Path:
-        return self.data_dir / "logs"
+        return self.logs_root or (self.data_dir / "logs")
 
     @property
     def webview_data_dir(self) -> Path:
@@ -165,7 +168,7 @@ def load_path_overrides() -> dict[str, str]:
     if not isinstance(raw, dict):
         return {}
     result: dict[str, str] = {}
-    for key in ("data_dir", "cache_dir"):
+    for key in ("data_dir", "projects_dir", "assets_dir", "cache_dir", "logs_dir"):
         value = str(raw.get(key) or "").strip()
         if value:
             candidate = Path(value).expanduser()
@@ -176,7 +179,7 @@ def load_path_overrides() -> dict[str, str]:
 
 def save_path_overrides(patch: dict[str, str]) -> dict[str, str]:
     current = load_path_overrides()
-    for key in ("data_dir", "cache_dir"):
+    for key in ("data_dir", "projects_dir", "assets_dir", "cache_dir", "logs_dir"):
         if key not in patch:
             continue
         value = str(patch.get(key) or "").strip()
@@ -204,6 +207,7 @@ def resolve_app_paths(
     frozen: bool | None = None,
 ) -> AppPaths:
     packaged = bool(getattr(sys, "frozen", False)) if frozen is None else frozen
+    explicit_data_root = data_dir is not None
     if resource_dir is None:
         if packaged:
             resource_root = Path(getattr(sys, "_MEIPASS", Path(sys.executable).resolve().parent)).resolve()
@@ -226,12 +230,24 @@ def resolve_app_paths(
         else:
             data_root = resource_root
 
-    configured_cache = os.environ.get("INFINITE_CANVAS_CACHE_DIR", "").strip()
-    cache_root = Path(configured_cache).expanduser().resolve() if configured_cache else None
-    if cache_root is None and packaged and overrides.get("cache_dir"):
-        cache_root = Path(overrides["cache_dir"]).resolve()
+    def configured_root(environment_key: str, override_key: str) -> Path | None:
+        if explicit_data_root:
+            return None
+        configured = os.environ.get(environment_key, "").strip()
+        if configured:
+            return Path(configured).expanduser().resolve()
+        if packaged and overrides.get(override_key):
+            return Path(overrides[override_key]).resolve()
+        return None
 
-    return AppPaths(resource_dir=resource_root, data_dir=data_root, cache_dir=cache_root)
+    return AppPaths(
+        resource_dir=resource_root,
+        data_dir=data_root,
+        projects_root=configured_root("INFINITE_CANVAS_PROJECTS_DIR", "projects_dir"),
+        assets_root=configured_root("INFINITE_CANVAS_ASSETS_DIR", "assets_dir"),
+        cache_root=configured_root("INFINITE_CANVAS_CACHE_DIR", "cache_dir"),
+        logs_root=configured_root("INFINITE_CANVAS_LOGS_DIR", "logs_dir"),
+    )
 
 
 def ensure_user_directories(paths: AppPaths) -> None:

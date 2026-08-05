@@ -107,7 +107,7 @@ end;
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
 #ifndef SmokeTestRoot
-  if (CurStep = ssPostInstall) and (not HasWebView2Runtime) then
+  if (CurStep = ssPostInstall) and (not WizardSilent()) and (not HasWebView2Runtime) then
   begin
     MsgBox(
       'Microsoft Edge WebView2 Runtime was not detected.' + #13#10 + #13#10 +
